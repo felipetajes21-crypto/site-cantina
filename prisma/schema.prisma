@@ -1,0 +1,115 @@
+// Esquema do banco de dados.
+// Desenvolvimento usa SQLite. Em produção, o script scripts/use-postgres.mjs
+// troca o provider para "postgresql" antes do build (ver README).
+// Observação: SQLite não suporta enums no Prisma, por isso status e papéis são
+// strings validadas na aplicação (ver src/lib/status.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?  @unique
+  phone        String?  @unique
+  passwordHash String
+  role         String   @default("CUSTOMER") // CUSTOMER | ADMIN
+  createdAt    DateTime @default(now())
+  orders       Order[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  sortOrder Int       @default(0)
+  products  Product[]
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  description String      @default("")
+  priceCents  Int
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+  active      Boolean     @default(true) // desligar quando acabar
+  trackStock  Boolean     @default(false) // controle de estoque opcional
+  stock       Int         @default(0)
+  imageUrl    String? // foto por link externo (opcional)
+  imageData   Bytes? // foto enviada pelo painel (opcional)
+  imageMime   String?
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+
+  @@index([categoryId])
+}
+
+model Order {
+  // O id sequencial é o "número do pedido" mostrado ao cliente.
+  id               Int         @id @default(autoincrement())
+  // Código aleatório usado no QR Code de retirada (não é adivinhável).
+  code             String      @unique
+  userId           String
+  user             User        @relation(fields: [userId], references: [id])
+  status           String      @default("AWAITING_PAYMENT")
+  totalCents       Int
+  note             String?
+  pickupDate       String // data local AAAA-MM-DD
+  pickupSlot       String? // "HH:MM"; null = o mais rápido possível
+  paymentProvider  String      @default("static-pix")
+  paymentRef       String? // identificador da cobrança no provedor
+  pixPayload       String? // Pix copia e cola
+  paymentClaimedAt DateTime? // cliente clicou em "já paguei"
+  expiresAt        DateTime? // prazo para pagar
+  paidAt           DateTime?
+  readyAt          DateTime?
+  pickedUpAt       DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  items            OrderItem[]
+
+  @@index([status])
+  @@index([userId])
+  @@index([pickupDate, pickupSlot])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // Nome e preço são copiados no momento da compra (o cardápio pode mudar depois).
+  name      String
+  unitCents Int
+  quantity  Int
+  note      String?
+
+  @@index([orderId])
+}
+
+// Linha única (id = 1) com as configurações da cantina.
+model Settings {
+  id              Int     @id @default(1)
+  cantinaName     String  @default("Cantina")
+  acceptingOrders Boolean @default(true)
+  openTime        String  @default("07:00")
+  closeTime       String  @default("18:00")
+  openDays        String  @default("1,2,3,4,5") // 0 = domingo ... 6 = sábado
+  slotMinutes     Int     @default(15)
+  maxPerSlot      Int     @default(8)
+  prepMinutes     Int     @default(10) // antecedência mínima para retirada
+  pixKey          String  @default("")
+  pixMerchantName String  @default("CANTINA")
+  pixCity         String  @default("SAO PAULO")
+}

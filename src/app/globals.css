@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+/*
+ * Identidade visual da cantina.
+ * Mundo: balcão de cantina. A cor de marca (verde-petróleo) domina o cabeçalho,
+ * o fundo é levemente tingido do mesmo tom, e o açafrão marca o que está
+ * "quente" (pronto, novo, contagem do carrinho). Para trocar a identidade,
+ * altere as escalas --color-brand-* e --color-saffron-*.
+ */
+@theme {
+  /* Neutros com leve viés para o verde da marca (substituem os cinzas padrão). */
+  --color-stone-50: oklch(98.4% 0.004 170);
+  --color-stone-100: oklch(96.1% 0.007 170);
+  --color-stone-200: oklch(91.6% 0.009 172);
+  --color-stone-300: oklch(86.2% 0.012 172);
+  --color-stone-400: oklch(70.2% 0.015 174);
+  --color-stone-500: oklch(53.5% 0.017 176);
+  --color-stone-600: oklch(44.5% 0.018 178);
+  --color-stone-700: oklch(36.5% 0.019 180);
+  --color-stone-800: oklch(28% 0.018 182);
+  --color-stone-900: oklch(21% 0.017 184);
+
+  /* Cor de marca */
+  --color-brand-50: oklch(97.4% 0.019 181);
+  --color-brand-100: oklch(93.2% 0.045 181);
+  --color-brand-200: oklch(86.5% 0.075 182);
+  --color-brand-600: oklch(60% 0.11 184);
+  --color-brand-700: oklch(51.5% 0.094 186);
+  --color-brand-800: oklch(43.5% 0.078 188);
+  --color-brand-900: oklch(30.5% 0.052 190);
+  --color-brand-950: oklch(23.5% 0.04 192);
+
+  /* Acento quente */
+  --color-saffron-100: oklch(95.5% 0.05 88);
+  --color-saffron-300: oklch(87.5% 0.13 86);
+  --color-saffron-400: oklch(82% 0.155 78);
+  --color-saffron-900: oklch(38% 0.08 60);
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Superfícies do navegador também seguem a identidade. */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+  accent-color: var(--color-brand-700);
+  caret-color: var(--color-brand-700);
+  scrollbar-color: var(--color-stone-300) transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+::selection {
+  background: var(--color-saffron-300);
+  color: var(--color-stone-900);
+}
+:focus-visible {
+  outline: 2px solid var(--color-brand-700);
+  outline-offset: 2px;
+}
+a {
+  text-underline-offset: 0.18em;
+}
+
+body {
+  @apply bg-stone-50 font-sans text-stone-900 antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+  letter-spacing: -0.015em;
+}
+p {
+  text-wrap: pretty;
+}
+
+@layer components {
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-[background-color,border-color,box-shadow,transform] duration-150 select-none active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply bg-brand-700 text-white shadow-[0_1px_2px_oklch(30%_0.05_190/0.25),inset_0_1px_0_oklch(100%_0_0/0.12)] hover:bg-brand-800;
+  }
+  .btn-secondary {
+    @apply border border-stone-300 bg-white text-stone-800 hover:border-stone-400 hover:bg-stone-50;
+  }
+  .btn-danger {
+    @apply border border-red-200 bg-white text-red-700 hover:bg-red-50;
+  }
+  .btn-sm {
+    @apply min-h-9 rounded-lg px-3 text-[13px];
+  }
+  .input {
+    @apply block min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 text-base text-stone-900 transition-[border-color,box-shadow] placeholder:text-stone-400 focus:border-brand-700 focus:ring-3 focus:ring-brand-100 focus:outline-none;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-stone-700;
+  }
+  .card {
+    @apply rounded-2xl border border-stone-200 bg-white shadow-[0_1px_2px_oklch(30%_0.03_185/0.04),0_4px_14px_-6px_oklch(30%_0.03_185/0.08)];
+  }
+
+  /*
+   * Picote de comanda: linha tracejada com dois recortes semicirculares nas
+   * bordas do cartão. É o detalhe-assinatura do site (pedido e painel).
+   * Use dentro de um .card com padding horizontal igual a --tear-inset.
+   */
+  .ticket-tear {
+    --tear-inset: 1.25rem;
+    position: relative;
+    margin-inline: calc(var(--tear-inset) * -1);
+    border-top: 2px dashed var(--color-stone-200);
+  }
+  .ticket-tear::before,
+  .ticket-tear::after {
+    content: "";
+    position: absolute;
+    top: -10px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--tear-bg, var(--color-stone-50));
+    border: 1px solid var(--color-stone-200);
+  }
+  .ticket-tear::before {
+    left: -10px;
+    clip-path: inset(0 0 0 50%);
+  }
+  .ticket-tear::after {
+    right: -10px;
+    clip-path: inset(0 50% 0 0);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
