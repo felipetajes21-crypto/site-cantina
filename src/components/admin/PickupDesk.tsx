@@ -96,7 +96,7 @@ export function PickupDesk() {
               Confirmar retirada
             </button>
           ) : (
-            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <p className="mt-3 rounded-xl bg-saffron-100 px-3 py-2.5 text-sm text-saffron-900">
               Este pedido não está pronto para retirada. Atualize o status na tela de pedidos.
             </p>
           )}

@@ -4,7 +4,7 @@
 // sonoro quando chega pedido novo ou quando um cliente informa que pagou.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { formatBRL, orderNumber, pickupLabel } from "@/lib/format";
+import { formatBRL, orderNumber } from "@/lib/format";
 import type { OrderDTO } from "@/lib/orders";
 import { NEXT_ACTION_LABEL, STATUS_LABEL, type OrderStatus } from "@/lib/status";
 import { StatusBadge } from "../StatusBadge";
@@ -174,36 +174,63 @@ function OrderCard({
   onAct: (order: OrderDTO, action: "confirm_payment" | "advance" | "cancel") => void;
 }) {
   const awaiting = o.status === "AWAITING_PAYMENT";
+  const claimed = awaiting && o.paymentClaimed;
+  // Cada pedido é uma comanda: cabeçalho com número e horário, picote, itens.
   return (
-    <article className={`card p-3.5 ${awaiting && o.paymentClaimed ? "border-amber-400 ring-2 ring-amber-200" : ""}`}>
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-xl font-bold tabular-nums">{orderNumber(o.id)}</h3>
-        <span className="text-sm font-semibold text-stone-700">{pickupLabel(o.pickupSlot) === o.pickupSlot ? `Retirada ${o.pickupSlot}` : "O quanto antes"}</span>
+    <article
+      className={`card px-4 pt-3.5 pb-3.5 [--tear-bg:var(--color-stone-50)] ${
+        claimed ? "border-saffron-400 ring-2 ring-saffron-300" : ""
+      } ${o.status === "READY" ? "border-brand-200" : ""}`}
+      style={{ "--tear-inset": "1rem" } as React.CSSProperties}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="font-display text-2xl leading-none font-extrabold tracking-[-0.02em] tabular-nums">{orderNumber(o.id)}</h3>
+          <p className="mt-1 truncate text-sm text-stone-600">{o.customerName}</p>
+        </div>
+        <span
+          className={`shrink-0 rounded-lg px-2 py-1 text-xs font-bold tabular-nums ${
+            o.pickupSlot ? "bg-stone-100 text-stone-800" : "bg-saffron-100 text-saffron-900"
+          }`}
+        >
+          {o.pickupSlot ? `Retirada ${o.pickupSlot}` : "O quanto antes"}
+        </span>
       </div>
-      <p className="truncate text-sm text-stone-600">{o.customerName}</p>
 
-      <ul className="mt-2 space-y-1 border-t border-stone-200 pt-2 text-sm">
+      <div className="ticket-tear mt-3" />
+
+      <ul className="space-y-1.5 pt-3 text-[15px]">
         {o.items.map((i) => (
           <li key={i.id}>
-            <span className="font-semibold">{i.quantity}×</span> {i.name}
-            {i.note && <span className="block rounded bg-amber-50 px-1.5 py-0.5 text-[13px] font-medium text-amber-900">Obs.: {i.note}</span>}
+            <span className="font-bold tabular-nums">{i.quantity}×</span> {i.name}
+            {i.note && <span className="mt-0.5 block rounded-md bg-saffron-100 px-2 py-0.5 text-[13px] font-semibold text-saffron-900">Obs.: {i.note}</span>}
           </li>
         ))}
       </ul>
-      {o.note && <p className="mt-2 rounded bg-amber-50 px-1.5 py-1 text-[13px] font-medium text-amber-900">Pedido: {o.note}</p>}
+      {o.note && <p className="mt-2 rounded-md bg-saffron-100 px-2 py-1 text-[13px] font-semibold text-saffron-900">Pedido: {o.note}</p>}
 
       {awaiting && (
-        <p className={`mt-2 text-sm ${o.paymentClaimed ? "font-semibold text-amber-800" : "text-stone-500"}`}>
-          {o.paymentClaimed ? "Cliente informou o pagamento" : "Ainda não pagou"} · {formatBRL(o.totalCents)}
+        <p className={`mt-3 flex items-baseline justify-between gap-2 text-sm ${claimed ? "font-semibold text-saffron-900" : "text-stone-500"}`}>
+          <span>{claimed ? "Cliente informou o pagamento" : "Ainda não pagou"}</span>
+          <span className="shrink-0 tabular-nums">{formatBRL(o.totalCents)}</span>
         </p>
       )}
 
       <div className="mt-3 flex gap-2">
-        <button type="button" className="btn-primary btn-sm flex-1" disabled={busy} onClick={() => onAct(o, awaiting ? "confirm_payment" : "advance")}>
+        <button type="button" className="btn-primary btn-sm flex-1 whitespace-nowrap" disabled={busy} onClick={() => onAct(o, awaiting ? "confirm_payment" : "advance")}>
           {NEXT_ACTION_LABEL[o.status]}
         </button>
-        <button type="button" className="btn-danger btn-sm" disabled={busy} onClick={() => onAct(o, "cancel")} aria-label={`Cancelar pedido ${orderNumber(o.id)}`}>
-          Cancelar
+        <button
+          type="button"
+          className="btn-danger btn-sm w-9 px-0"
+          disabled={busy}
+          onClick={() => onAct(o, "cancel")}
+          aria-label={`Cancelar pedido ${orderNumber(o.id)}`}
+          title="Cancelar pedido"
+        >
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
         </button>
       </div>
     </article>

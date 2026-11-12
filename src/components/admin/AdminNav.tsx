@@ -16,13 +16,13 @@ const LINKS = [
 export function AdminNav({ cantinaName }: { cantinaName: string }) {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-30 border-b border-stone-200 bg-white">
+    <header className="sticky top-0 z-30 bg-brand-900 text-white">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-2.5 px-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brand.logo} alt="" width={28} height={28} />
-        <span className="mr-auto truncate font-bold">{cantinaName} · Painel</span>
-        <Link href="/" className="rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100">Ver site</Link>
-        <LogoutButton redirectTo="/admin/login" className="cursor-pointer rounded-lg px-2 py-1.5 text-sm text-stone-600 hover:bg-stone-100" />
+        <img src={brand.logo} alt="" width={28} height={28} className="rounded-lg ring-1 ring-white/15" />
+        <span className="mr-auto truncate font-display font-bold">{cantinaName} <span className="font-sans font-medium text-brand-200">· Painel</span></span>
+        <Link href="/" className="rounded-lg px-2 py-1.5 text-sm text-brand-100 hover:bg-white/10 hover:text-white">Ver site</Link>
+        <LogoutButton redirectTo="/admin/login" className="cursor-pointer rounded-lg px-2 py-1.5 text-sm text-brand-100 hover:bg-white/10 hover:text-white" />
       </div>
       <nav aria-label="Painel" className="no-scrollbar mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3">
         {LINKS.map((l) => {
@@ -32,8 +32,8 @@ export function AdminNav({ cantinaName }: { cantinaName: string }) {
               key={l.href}
               href={l.href}
               aria-current={active ? "page" : undefined}
-              className={`shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium ${
-                active ? "border-brand-700 text-brand-800" : "border-transparent text-stone-600 hover:text-stone-900"
+              className={`shrink-0 border-b-[3px] px-3 py-2.5 text-sm font-semibold transition-colors ${
+                active ? "border-saffron-400 text-white" : "border-transparent text-brand-200 hover:text-white"
               }`}
             >
               {l.label}

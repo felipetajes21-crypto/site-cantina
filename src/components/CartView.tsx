@@ -122,7 +122,7 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
         {!availability ? (
           <p className="text-sm text-stone-500">Carregando horários…</p>
         ) : !availability.open ? (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">{availability.reason}</p>
+          <p className="rounded-xl border border-saffron-300 bg-saffron-100 px-3 py-2.5 text-sm text-saffron-900">{availability.reason}</p>
         ) : (
           <div role="radiogroup" aria-label="Horário de retirada" className="flex flex-wrap gap-2">
             {availability.asap && (

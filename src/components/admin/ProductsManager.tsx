@@ -65,7 +65,7 @@ export function ProductsManager({ categories, products }: { categories: AdminCat
               <ul className="card divide-y divide-stone-200">
                 {list.map((p) => (
                   <li key={p.id} className="flex flex-wrap items-center gap-3 p-3">
-                    <ProductImage src={p.image} name={p.name} className="size-12 shrink-0 rounded-lg" />
+                    <ProductImage src={p.image} name={p.name} category={category.name} className="size-12 shrink-0 rounded-lg" />
                     <div className="min-w-0 flex-1 basis-40">
                       <p className="truncate font-semibold">{p.name}</p>
                       <p className="text-sm text-stone-600 tabular-nums">{formatBRL(p.priceCents)}</p>
@@ -239,7 +239,7 @@ function ProductForm({ product, categories, onDone }: { product: AdminProduct | 
       <div>
         <span className="label">Foto</span>
         <div className="flex items-center gap-3">
-          <ProductImage src={preview} name={name || "?"} className="size-16 shrink-0 rounded-xl" />
+          <ProductImage src={preview} name={name || "?"} category={categories.find((c) => c.id === categoryId)?.name} className="size-16 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1 space-y-2">
             <input
               type="file"

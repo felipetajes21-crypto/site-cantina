@@ -153,48 +153,73 @@ function PixPayment({ order, onChange }: { order: OrderDTO; onChange: (o: OrderD
   );
 }
 
-/** Linha do tempo do pedido + QR Code para apresentar no balcão. */
+const CHECK = (
+  <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </svg>
+);
+
+/**
+ * Comanda do pedido: número e QR Code para o balcão, separados por um picote
+ * da linha do tempo do preparo.
+ */
 function Progress({ order }: { order: OrderDTO }) {
   const current = TIMELINE.indexOf(order.status);
   const ready = order.status === "READY";
+  const done = order.status === "PICKED_UP";
 
   return (
-    <div className="card p-5">
-      {ready && (
-        <p className="mb-4 rounded-xl bg-emerald-100 px-3 py-2.5 text-center font-semibold text-emerald-900" role="status">
-          Seu pedido está pronto. Retire no balcão.
+    <div className="card overflow-visible">
+      <div className={`rounded-t-2xl px-5 pt-5 pb-5 text-center ${ready ? "bg-saffron-100" : ""}`}>
+        {ready ? (
+          <p className="font-display text-lg font-bold text-saffron-900" role="status">
+            Pronto! Retire no balcão.
+          </p>
+        ) : done ? (
+          <p className="font-display text-lg font-bold text-stone-700" role="status">Pedido retirado. Bom apetite!</p>
+        ) : (
+          <p className="text-sm font-medium text-stone-600">Apresente no balcão</p>
+        )}
+        <p className="mt-1 font-display text-6xl leading-none font-extrabold tracking-[-0.03em] tabular-nums">
+          {orderNumber(order.id)}
         </p>
-      )}
+        {!done && (
+          <div className="mt-4 grid place-items-center">
+            <QrCode value={`CANTINA:${order.code}`} size={168} label="QR Code de retirada" />
+          </div>
+        )}
+      </div>
 
-      <ol aria-label="Andamento do pedido">
-        {TIMELINE.map((status, i) => {
-          const done = i <= current;
-          return (
-            <li key={status} className="flex gap-3" aria-current={i === current ? "step" : undefined}>
-              <div className="flex flex-col items-center">
-                <span className={`grid size-6 place-items-center rounded-full text-xs font-bold ${done ? "bg-brand-700 text-white" : "bg-stone-200 text-stone-500"}`}>
-                  {done ? "✓" : i + 1}
-                </span>
-                {i < TIMELINE.length - 1 && <span className={`w-0.5 flex-1 ${i < current ? "bg-brand-700" : "bg-stone-200"}`} />}
-              </div>
-              <p className={`pb-4 text-sm ${i === current ? "font-bold" : done ? "text-stone-700" : "text-stone-400"}`}>
-                {STATUS_LABEL[status]}
-              </p>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="ticket-tear" style={{ "--tear-inset": "0px" } as React.CSSProperties} />
 
-      {order.status !== "PICKED_UP" && (
-        <div className="mt-1 grid place-items-center border-t border-stone-200 pt-4 text-center">
-          <p className="text-sm text-stone-600">Apresente no balcão</p>
-          <p className="mb-3 text-4xl font-bold tracking-tight tabular-nums">{orderNumber(order.id)}</p>
-          <QrCode value={`CANTINA:${order.code}`} size={180} label="QR Code de retirada" />
-        </div>
-      )}
-      {order.status === "PICKED_UP" && (
-        <Link href="/" className="btn-secondary w-full">Fazer novo pedido</Link>
-      )}
+      <div className="px-5 pt-5 pb-3">
+        <ol aria-label="Andamento do pedido">
+          {TIMELINE.map((status, i) => {
+            const reached = i <= current;
+            const isCurrent = i === current;
+            return (
+              <li key={status} className="flex gap-3" aria-current={isCurrent ? "step" : undefined}>
+                <div className="flex flex-col items-center">
+                  <span
+                    className={`grid size-6 place-items-center rounded-full text-xs font-bold transition-colors ${
+                      reached ? "bg-brand-700 text-white" : "bg-stone-100 text-stone-500 ring-1 ring-stone-200"
+                    } ${isCurrent && !done ? "ring-4 ring-brand-100" : ""}`}
+                  >
+                    {reached ? CHECK : i + 1}
+                  </span>
+                  {i < TIMELINE.length - 1 && <span className={`my-1 w-0.5 flex-1 rounded-full ${i < current ? "bg-brand-700" : "bg-stone-200"}`} />}
+                </div>
+                <p className={`pb-4 text-[15px] ${isCurrent ? "font-semibold text-stone-900" : reached ? "text-stone-600" : "text-stone-400"}`}>
+                  {STATUS_LABEL[status]}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+        {done && (
+          <Link href="/" className="btn-secondary mb-2 w-full">Fazer novo pedido</Link>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,12 +1,22 @@
-/** Foto do produto, com um espaço reservado neutro quando não há foto. */
-export function ProductImage({ src, name, className = "" }: { src: string | null; name: string; className?: string }) {
+import { CATEGORY_TINT, CategoryIcon, categoryKind } from "./CategoryIcon";
+
+/** Foto do produto. Sem foto, mostra o ícone da categoria em um fundo tingido. */
+export function ProductImage({
+  src,
+  name,
+  category,
+  className = "",
+}: {
+  src: string | null;
+  name: string;
+  category?: string;
+  className?: string;
+}) {
   if (!src) {
+    const kind = categoryKind(category ?? name);
     return (
-      <div
-        aria-hidden
-        className={`grid place-items-center bg-stone-100 text-2xl font-semibold text-stone-400 ${className}`}
-      >
-        {name.charAt(0).toUpperCase()}
+      <div aria-hidden className={`grid place-items-center ${CATEGORY_TINT[kind]} ${className}`}>
+        <CategoryIcon kind={kind} className="size-[42%]" />
       </div>
     );
   }
