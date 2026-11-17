@@ -15,10 +15,10 @@ export function categoryKind(name: string | undefined): CategoryKind {
 
 /** Fundo e cor do traço de cada categoria (tons suaves, sempre legíveis). */
 export const CATEGORY_TINT: Record<CategoryKind, string> = {
-  salgado: "bg-[oklch(95%_0.045_75)] text-[oklch(48%_0.1_60)]",
-  lanche: "bg-[oklch(95%_0.04_35)] text-[oklch(50%_0.13_32)]",
-  bebida: "bg-[oklch(95%_0.035_215)] text-[oklch(46%_0.09_230)]",
-  doce: "bg-[oklch(95%_0.035_350)] text-[oklch(50%_0.12_355)]",
+  salgado: "bg-[oklch(95%_0.06_88)] text-[oklch(45%_0.1_70)]", // dourado
+  lanche: "bg-[oklch(94.5%_0.05_55)] text-[oklch(50%_0.15_45)]", // laranja
+  bebida: "bg-[oklch(96.5%_0.07_102)] text-[oklch(46%_0.1_95)]", // limão
+  doce: "bg-[oklch(94.5%_0.045_38)] text-[oklch(50%_0.14_32)]", // pêssego
   outro: "bg-brand-50 text-brand-800",
 };
 

@@ -16,13 +16,13 @@ const LINKS = [
 export function AdminNav({ cantinaName }: { cantinaName: string }) {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-30 bg-brand-900 text-white">
+    <header className="sticky top-0 z-30 border-b border-saffron-500/60 bg-saffron-400 text-stone-900">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-2.5 px-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brand.logo} alt="" width={28} height={28} className="rounded-lg ring-1 ring-white/15" />
-        <span className="mr-auto truncate font-display font-bold">{cantinaName} <span className="font-sans font-medium text-brand-200">· Painel</span></span>
-        <Link href="/" className="rounded-lg px-2 py-1.5 text-sm text-brand-100 hover:bg-white/10 hover:text-white">Ver site</Link>
-        <LogoutButton redirectTo="/admin/login" className="cursor-pointer rounded-lg px-2 py-1.5 text-sm text-brand-100 hover:bg-white/10 hover:text-white" />
+        <img src={brand.logo} alt="" width={28} height={28} className="rounded-lg shadow-sm" />
+        <span className="mr-auto truncate font-display font-bold">{cantinaName} <span className="font-sans font-medium text-stone-700">· Painel</span></span>
+        <Link href="/" className="rounded-lg px-2 py-1.5 text-sm font-medium text-stone-800 hover:bg-black/5">Ver site</Link>
+        <LogoutButton redirectTo="/admin/login" className="cursor-pointer rounded-lg px-2 py-1.5 text-sm font-medium text-stone-800 hover:bg-black/5" />
       </div>
       <nav aria-label="Painel" className="no-scrollbar mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3">
         {LINKS.map((l) => {
@@ -33,7 +33,7 @@ export function AdminNav({ cantinaName }: { cantinaName: string }) {
               href={l.href}
               aria-current={active ? "page" : undefined}
               className={`shrink-0 border-b-[3px] px-3 py-2.5 text-sm font-semibold transition-colors ${
-                active ? "border-saffron-400 text-white" : "border-transparent text-brand-200 hover:text-white"
+                active ? "border-brand-700 text-stone-900" : "border-transparent text-stone-700 hover:text-stone-900"
               }`}
             >
               {l.label}

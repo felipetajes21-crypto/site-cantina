@@ -9,15 +9,15 @@ import { LogoutButton } from "@/components/LogoutButton";
 // Layout da área do cliente: cabeçalho fixo + carrinho compartilhado entre as páginas.
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const [session, settings] = await Promise.all([getSession(), getSettings()]);
-  const link = "rounded-lg px-2.5 py-2 text-sm font-medium text-brand-100 transition-colors hover:bg-white/10 hover:text-white";
+  const link = "rounded-lg px-2.5 py-2 text-sm font-semibold text-stone-800 transition-colors hover:bg-black/5 hover:text-stone-900";
 
   return (
     <CartProvider>
-      <header className="sticky top-0 z-30 bg-brand-900 text-white">
+      <header className="sticky top-0 z-30 border-b border-saffron-500/60 bg-saffron-400 text-stone-900">
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-1 px-4">
           <Link href="/" className="mr-auto flex min-w-0 items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={brand.logo} alt="" width={32} height={32} className="size-8 shrink-0 rounded-[10px] ring-1 ring-white/15" />
+            <img src={brand.logo} alt="" width={32} height={32} className="size-8 shrink-0 rounded-[10px] shadow-sm" />
             <span className="truncate font-display text-[17px] font-bold tracking-tight">{settings.cantinaName}</span>
           </Link>
           {session ? (

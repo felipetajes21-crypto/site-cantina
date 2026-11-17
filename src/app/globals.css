@@ -1,40 +1,42 @@
 @import "tailwindcss";
 
 /*
- * Identidade visual da cantina.
- * Mundo: balcão de cantina. A cor de marca (verde-petróleo) domina o cabeçalho,
- * o fundo é levemente tingido do mesmo tom, e o açafrão marca o que está
- * "quente" (pronto, novo, contagem do carrinho). Para trocar a identidade,
- * altere as escalas --color-brand-* e --color-saffron-*.
+ * Identidade visual da cantina: branco, amarelo e laranja.
+ * Fundo branco levemente quente; o amarelo é a faixa do cabeçalho e marca o
+ * que está "quente" (pronto, contador do carrinho); o laranja é a cor de ação
+ * (botões, seleção, links). Para trocar a identidade, altere as escalas
+ * --color-brand-* (laranja) e --color-saffron-* (amarelo).
+ * Todas as combinações de texto foram conferidas para contraste AA (4,5:1).
  */
 @theme {
-  /* Neutros com leve viés para o verde da marca (substituem os cinzas padrão). */
-  --color-stone-50: oklch(98.4% 0.004 170);
-  --color-stone-100: oklch(96.1% 0.007 170);
-  --color-stone-200: oklch(91.6% 0.009 172);
-  --color-stone-300: oklch(86.2% 0.012 172);
-  --color-stone-400: oklch(70.2% 0.015 174);
-  --color-stone-500: oklch(53.5% 0.017 176);
-  --color-stone-600: oklch(44.5% 0.018 178);
-  --color-stone-700: oklch(36.5% 0.019 180);
-  --color-stone-800: oklch(28% 0.018 182);
-  --color-stone-900: oklch(21% 0.017 184);
+  /* Neutros quentes (substituem os cinzas padrão). */
+  --color-stone-50: oklch(99% 0.004 85);
+  --color-stone-100: oklch(96.6% 0.009 82);
+  --color-stone-200: oklch(92.6% 0.013 78);
+  --color-stone-300: oklch(87.2% 0.017 74);
+  --color-stone-400: oklch(71% 0.02 68);
+  --color-stone-500: oklch(53% 0.02 65);
+  --color-stone-600: oklch(45.5% 0.02 60);
+  --color-stone-700: oklch(37% 0.02 55);
+  --color-stone-800: oklch(28% 0.018 50);
+  --color-stone-900: oklch(21% 0.015 50);
 
-  /* Cor de marca */
-  --color-brand-50: oklch(97.4% 0.019 181);
-  --color-brand-100: oklch(93.2% 0.045 181);
-  --color-brand-200: oklch(86.5% 0.075 182);
-  --color-brand-600: oklch(60% 0.11 184);
-  --color-brand-700: oklch(51.5% 0.094 186);
-  --color-brand-800: oklch(43.5% 0.078 188);
-  --color-brand-900: oklch(30.5% 0.052 190);
-  --color-brand-950: oklch(23.5% 0.04 192);
+  /* Laranja: ações */
+  --color-brand-50: oklch(97.8% 0.02 70);
+  --color-brand-100: oklch(94.5% 0.05 65);
+  --color-brand-200: oklch(89% 0.09 60);
+  --color-brand-600: oklch(63% 0.185 45);
+  --color-brand-700: oklch(54% 0.17 42);
+  --color-brand-800: oklch(47% 0.15 40);
+  --color-brand-900: oklch(38% 0.12 40);
+  --color-brand-950: oklch(28% 0.08 40);
 
-  /* Acento quente */
-  --color-saffron-100: oklch(95.5% 0.05 88);
-  --color-saffron-300: oklch(87.5% 0.13 86);
-  --color-saffron-400: oklch(82% 0.155 78);
-  --color-saffron-900: oklch(38% 0.08 60);
+  /* Amarelo: cabeçalho e destaques */
+  --color-saffron-100: oklch(97% 0.055 95);
+  --color-saffron-300: oklch(91% 0.14 94);
+  --color-saffron-400: oklch(86% 0.165 86);
+  --color-saffron-500: oklch(80% 0.165 80);
+  --color-saffron-900: oklch(40% 0.09 65);
 
   --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-display: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
@@ -85,7 +87,7 @@ p {
     @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-[background-color,border-color,box-shadow,transform] duration-150 select-none active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
   .btn-primary {
-    @apply bg-brand-700 text-white shadow-[0_1px_2px_oklch(30%_0.05_190/0.25),inset_0_1px_0_oklch(100%_0_0/0.12)] hover:bg-brand-800;
+    @apply bg-brand-700 text-white shadow-[0_1px_2px_oklch(38%_0.12_40/0.3),inset_0_1px_0_oklch(100%_0_0/0.12)] hover:bg-brand-800;
   }
   .btn-secondary {
     @apply border border-stone-300 bg-white text-stone-800 hover:border-stone-400 hover:bg-stone-50;
@@ -103,7 +105,7 @@ p {
     @apply mb-1 block text-sm font-medium text-stone-700;
   }
   .card {
-    @apply rounded-2xl border border-stone-200 bg-white shadow-[0_1px_2px_oklch(30%_0.03_185/0.04),0_4px_14px_-6px_oklch(30%_0.03_185/0.08)];
+    @apply rounded-2xl border border-stone-200 bg-white shadow-[0_1px_2px_oklch(40%_0.05_60/0.05),0_4px_14px_-6px_oklch(40%_0.05_60/0.09)];
   }
 
   /*
