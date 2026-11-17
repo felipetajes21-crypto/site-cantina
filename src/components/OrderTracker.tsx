@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { formatBRL, orderNumber, pickupLabel } from "@/lib/format";
+import { formatBRL, orderNumber } from "@/lib/format";
 import type { OrderDTO } from "@/lib/orders";
 import { isFinal, STATUS_LABEL, TIMELINE } from "@/lib/status";
 import { QrCode } from "./QrCode";
@@ -43,7 +43,7 @@ export function OrderTracker({ initial }: { initial: OrderDTO }) {
         <h1 className="text-2xl font-bold tracking-tight tabular-nums">Pedido {orderNumber(order.id)}</h1>
         <StatusBadge status={order.status} />
       </div>
-      <p className="mt-1 text-sm text-stone-600">Retirada: {pickupLabel(order.pickupSlot)}</p>
+      <p className="mt-1 text-sm text-stone-600">Retirada: <strong className="font-semibold text-stone-800">{order.pickupLabel}</strong></p>
 
       <div className="mt-5">
         {order.status === "AWAITING_PAYMENT" && <PixPayment order={order} onChange={setOrder} />}

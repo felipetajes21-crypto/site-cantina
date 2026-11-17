@@ -103,9 +103,11 @@ model Settings {
   id              Int     @id @default(1)
   cantinaName     String  @default("Cantina")
   acceptingOrders Boolean @default(true)
-  openTime        String  @default("07:00")
-  closeTime       String  @default("18:00")
-  openDays        String  @default("1,2,3,4,5") // 0 = domingo ... 6 = sábado
+  // Horário de cada dia da semana, em JSON: 7 itens (0 = domingo ... 6 = sábado)
+  // no formato {"open": true, "from": "07:00", "to": "18:00"}. Vazio = padrão.
+  schedule        String  @default("")
+  daysAhead       Int     @default(2) // até quantos dias à frente o cliente pode agendar (0 = só hoje)
+  closedDates     String  @default("") // datas fechadas (feriados), "AAAA-MM-DD,AAAA-MM-DD"
   slotMinutes     Int     @default(15)
   maxPerSlot      Int     @default(8)
   prepMinutes     Int     @default(10) // antecedência mínima para retirada

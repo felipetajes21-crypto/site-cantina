@@ -12,7 +12,7 @@ import { StatusBadge } from "../StatusBadge";
 const POLL_MS = 4000;
 const COLUMNS: OrderStatus[] = ["AWAITING_PAYMENT", "RECEIVED", "PREPARING", "READY"];
 
-type Data = { active: OrderDTO[]; done: OrderDTO[] };
+type Data = { active: OrderDTO[]; scheduled: OrderDTO[]; done: OrderDTO[] };
 
 /** Dois bipes curtos gerados pelo navegador (sem arquivo de áudio). */
 function beep(ctx: AudioContext) {
@@ -143,6 +143,25 @@ export function OrdersBoard() {
         ))}
       </div>
 
+      {data.scheduled.length > 0 && (
+        <section className={`mt-8 ${tab === "DONE" ? "" : "hidden lg:block"}`}>
+          <h2 className="mb-1 text-sm font-bold text-stone-700">Agendados para os próximos dias ({data.scheduled.length})</h2>
+          <p className="mb-2 text-sm text-stone-500">Já pagos. Entram na fila no dia da retirada.</p>
+          <ul className="card divide-y divide-stone-200">
+            {data.scheduled.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
+                <span className="font-bold tabular-nums">{orderNumber(o.id)}</span>
+                <span className="rounded-md bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand-900 tabular-nums">{o.pickupLabel}</span>
+                <span className="min-w-0 flex-1 truncate text-stone-700">
+                  {o.customerName} · {o.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+                </span>
+                <span className="tabular-nums">{formatBRL(o.totalCents)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className={`mt-8 ${tab === "DONE" ? "" : "hidden lg:block"}`}>
         <h2 className="mb-2 text-sm font-bold text-stone-700">Finalizados hoje</h2>
         {data.done.length === 0 ? (
@@ -190,10 +209,10 @@ function OrderCard({
         </div>
         <span
           className={`shrink-0 rounded-lg px-2 py-1 text-xs font-bold tabular-nums ${
-            o.pickupSlot ? "bg-stone-100 text-stone-800" : "bg-saffron-100 text-saffron-900"
+            !o.isToday ? "bg-brand-100 text-brand-900" : o.pickupSlot ? "bg-stone-100 text-stone-800" : "bg-saffron-100 text-saffron-900"
           }`}
         >
-          {o.pickupSlot ? `Retirada ${o.pickupSlot}` : "O quanto antes"}
+          {!o.isToday ? o.pickupLabel : o.pickupSlot ? `Retirada ${o.pickupSlot}` : "O quanto antes"}
         </span>
       </div>
 

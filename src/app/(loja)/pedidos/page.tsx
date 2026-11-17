@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { expireStaleOrders } from "@/lib/orders";
 import { formatBRL, orderNumber } from "@/lib/format";
-import { formatDateTime } from "@/lib/time";
+import { formatDateTime, localInfo } from "@/lib/time";
+import { pickupText } from "@/lib/schedule";
 import type { OrderStatus } from "@/lib/status";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RepeatOrderButton } from "@/components/RepeatOrderButton";
@@ -16,6 +17,7 @@ export default async function OrdersPage() {
   const session = await getSession();
   if (!session) redirect("/entrar?next=/pedidos");
   await expireStaleOrders();
+  const today = localInfo().date;
 
   const orders = await prisma.order.findMany({
     where: { userId: session.sub },
@@ -40,7 +42,9 @@ export default async function OrdersPage() {
                 <p className="font-bold tabular-nums">Pedido {orderNumber(o.id)}</p>
                 <StatusBadge status={o.status as OrderStatus} />
               </div>
-              <p className="mt-0.5 text-sm text-stone-500">{formatDateTime(o.createdAt)}</p>
+              <p className="mt-0.5 text-sm text-stone-500">
+                Feito em {formatDateTime(o.createdAt)} · Retirada: {pickupText(o.pickupDate, o.pickupSlot, today)}
+              </p>
               <p className="mt-2 text-sm text-stone-700">
                 {o.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
               </p>

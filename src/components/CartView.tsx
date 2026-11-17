@@ -5,14 +5,21 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { formatBRL } from "@/lib/format";
 import type { Menu } from "@/lib/menu";
-import type { Availability } from "@/lib/slots";
+import type { Availability, PickupDay } from "@/lib/slots";
 import { useCart } from "./cart";
 import { Stepper } from "./Stepper";
+
+const PERIODS = [
+  { label: "Manhã", test: (h: number) => h < 12 },
+  { label: "Tarde", test: (h: number) => h >= 12 && h < 18 },
+  { label: "Noite", test: (h: number) => h >= 18 },
+];
 
 export function CartView({ loggedIn }: { loggedIn: boolean }) {
   const cart = useCart();
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [limits, setLimits] = useState<Record<string, { available: boolean; max: number }>>({});
+  const [pickupDate, setPickupDate] = useState<string | null>(null);
   const [pickup, setPickup] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +31,7 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
     if (!cart.ready) return;
     api<Availability>("/api/slots").then((a) => {
       setAvailability(a);
-      setPickup(a.asap ? "ASAP" : (a.slots.find((s) => !s.full)?.time ?? null));
+      if (a.days[0]) selectDay(a.days[0]);
     });
     api<{ categories: Menu }>("/api/menu").then(({ categories }) => {
       const products = new Map(categories.flatMap((c) => c.products).map((p) => [p.id, p]));
@@ -40,6 +47,12 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.ready]);
+
+  /** Ao trocar de dia, já seleciona o primeiro horário livre dele. */
+  function selectDay(day: PickupDay) {
+    setPickupDate(day.date);
+    setPickup(day.asap ? "ASAP" : (day.slots.find((s) => !s.full)?.time ?? null));
+  }
 
   if (!cart.ready) return null;
 
@@ -57,14 +70,17 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
   const missing = cart.items.filter((i) => Object.keys(limits).length > 0 && !limits[i.productId]);
   const blocked = unavailable.length > 0 || missing.length > 0;
 
+  const selectedDay = availability?.days.find((d) => d.date === pickupDate);
+
   async function submit() {
-    if (!pickup) return setError("Escolha um horário de retirada.");
+    if (!pickupDate || !pickup) return setError("Escolha o dia e o horário de retirada.");
     setError(null);
     setSending(true);
     try {
       const { id } = await api<{ id: number }>("/api/orders", "POST", {
         items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity, note: i.note || undefined })),
         note: note || undefined,
+        pickupDate,
         pickup,
       });
       cart.clear();
@@ -124,17 +140,53 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
         ) : !availability.open ? (
           <p className="rounded-xl border border-saffron-300 bg-saffron-100 px-3 py-2.5 text-sm text-saffron-900">{availability.reason}</p>
         ) : (
-          <div role="radiogroup" aria-label="Horário de retirada" className="flex flex-wrap gap-2">
-            {availability.asap && (
-              <SlotChip label="O mais rápido possível" selected={pickup === "ASAP"} onSelect={() => setPickup("ASAP")} />
+          <>
+            <p className="mb-1.5 text-sm font-medium text-stone-700">Dia</p>
+            <div role="radiogroup" aria-label="Dia da retirada" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              {availability.days.map((d) => (
+                <button
+                  key={d.date}
+                  type="button"
+                  role="radio"
+                  aria-checked={pickupDate === d.date}
+                  onClick={() => selectDay(d)}
+                  className={`flex min-w-[5.5rem] shrink-0 cursor-pointer flex-col items-start rounded-xl border px-3 py-2 text-left transition-colors ${
+                    pickupDate === d.date ? "border-brand-700 bg-brand-700 text-white" : "border-stone-300 bg-white text-stone-800 hover:border-brand-700"
+                  }`}
+                >
+                  <span className="text-sm font-bold">{d.label}</span>
+                  <span className={`text-xs tabular-nums ${pickupDate === d.date ? "text-brand-100" : "text-stone-500"}`}>
+                    {d.hours.from}–{d.hours.to}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p className="mt-4 mb-1.5 text-sm font-medium text-stone-700">Horário</p>
+            <div role="radiogroup" aria-label="Horário de retirada" className="space-y-3">
+              {selectedDay?.asap && (
+                <SlotChip label="O mais rápido possível" selected={pickup === "ASAP"} onSelect={() => setPickup("ASAP")} />
+              )}
+              {/* Horários agrupados por período para a lista não ficar longa demais. */}
+              {PERIODS.map(({ label, test }) => {
+                const slots = selectedDay?.slots.filter((s) => test(Number(s.time.slice(0, 2)))) ?? [];
+                if (slots.length === 0) return null;
+                return (
+                  <div key={label}>
+                    <p className="mb-1.5 text-xs font-semibold tracking-wide text-stone-500 uppercase">{label}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {slots.map((s) => (
+                        <SlotChip key={s.time} label={s.time} disabled={s.full} selected={pickup === s.time} onSelect={() => setPickup(s.time)} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {selectedDay?.slots.some((s) => s.full) && (
+              <p className="mt-2 text-xs text-stone-500">Horários riscados já estão lotados.</p>
             )}
-            {availability.slots.map((s) => (
-              <SlotChip key={s.time} label={s.time} disabled={s.full} selected={pickup === s.time} onSelect={() => setPickup(s.time)} />
-            ))}
-            {!availability.asap && availability.slots.length === 0 && (
-              <p className="text-sm text-stone-600">Não há mais horários de retirada hoje.</p>
-            )}
-          </div>
+          </>
         )}
       </section>
 

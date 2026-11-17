@@ -40,6 +40,18 @@ Abra http://localhost:3000. O `npm run setup` cria o banco SQLite, o usuário ad
 
 O seed deixa a cantina aberta todos os dias, das 06:00 às 23:00, para facilitar os testes. Ajuste em **Painel → Configurações**.
 
+### O que o dono controla pelo painel
+
+- **Produtos**: criar, editar, remover, preço, categoria e foto. A foto pode ser tirada na hora pelo celular, e o site a reduz antes de enviar.
+- **Estoque**: em **Produtos**, use "Definir estoque" e ajuste com − / +. Cada pedido desconta do estoque, e o produto aparece como "Esgotado" quando zera. "Sem limite" desliga o controle.
+- **Disponível / Esgotado**: um toque para tirar um produto do cardápio.
+- **Horário de funcionamento por dia da semana**: cada dia aberto ou fechado, com horário próprio (ex.: sexta até 15:00).
+- **Agendamento**: até quantos dias à frente o cliente pode escolher a retirada (só hoje, hoje e amanhã, até 14 dias).
+- **Datas fechadas**: feriados e recessos, que somem das opções do cliente.
+- **Retirada**: tamanho do intervalo, limite de pedidos por intervalo e tempo mínimo de preparo.
+
+Pedidos pagos para outro dia aparecem em **Pedidos → Agendados para os próximos dias** e entram na fila da cozinha no dia da retirada.
+
 ## Antes de usar de verdade
 
 1. **Chave Pix**: o seed cadastra uma chave de demonstração que não existe em nenhum banco. Em **Painel → Configurações → Pix**, informe a chave, o nome do recebedor e a cidade da cantina. Faça um pedido de teste e leia o QR Code no app do banco para conferir o recebedor.
@@ -128,7 +140,7 @@ src/
 | Cliente | Painel |
 | --- | --- |
 | `/` cardápio por categorias | `/admin/login` |
-| `/carrinho` itens, observações, horário de retirada | `/admin` fila de pedidos em tempo real |
+| `/carrinho` itens, observações, dia e horário de retirada | `/admin` fila de pedidos em tempo real |
 | `/pedidos/[id]` Pix, status e QR Code de retirada | `/admin/retirada` leitor de QR Code / número |
 | `/pedidos` histórico e "repetir pedido" | `/admin/produtos` produtos, categorias, estoque |
 | `/entrar`, `/cadastro` | `/admin/relatorios`, `/admin/configuracoes` |
@@ -166,7 +178,7 @@ src/
 - Recuperação de senha por e-mail/SMS e verificação do telefone.
 - Cupons de desconto e programa de fidelidade (ex.: 10º café grátis).
 - Combos, adicionais e variações de produto (tamanho, sabor).
-- Agendamento para outros dias e pedidos recorrentes.
+- Pedidos recorrentes (ex.: o mesmo café todo dia às 09:00).
 - Avaliação dos pedidos e favoritos.
 - Impressão automática da comanda na cozinha.
 - Estorno/reembolso pelo painel e fechamento de caixa.

@@ -53,9 +53,9 @@ async function main() {
     create: {
       id: 1,
       cantinaName: "Cantina",
-      openTime: "06:00",
-      closeTime: "23:00",
-      openDays: "0,1,2,3,4,5,6",
+      // Todos os dias, das 06:00 às 23:00, para facilitar os testes.
+      schedule: JSON.stringify(Array.from({ length: 7 }, () => ({ open: true, from: "06:00", to: "23:00" }))),
+      daysAhead: 2,
       pixKey: DEMO_PIX_KEY,
     },
   });

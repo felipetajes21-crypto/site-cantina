@@ -8,7 +8,10 @@ import { MenuView } from "@/components/MenuView";
 export default async function MenuPage() {
   const settings = await getSettings();
   const [menu, availability] = await Promise.all([getMenu(), getAvailability(settings)]);
-  const nextSlot = availability.asap ? null : availability.slots.find((s) => !s.full)?.time;
+  const today = availability.days.find((d) => d.date === availability.today);
+  const orderingToday = !!today;
+  const nextDay = availability.days[0];
+  const nextTime = nextDay?.asap ? null : nextDay?.slots.find((s) => !s.full)?.time;
 
   return (
     <>
@@ -16,7 +19,7 @@ export default async function MenuPage() {
         <h1 className="text-[28px] leading-tight font-bold">Cardápio</h1>
         <p className="mt-1 text-[15px] text-stone-600">{brand.tagline}</p>
         <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          {availability.open ? (
+          {orderingToday ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-1 font-semibold text-brand-900">
               <span className="size-1.5 rounded-full bg-brand-700" aria-hidden />
               Aceitando pedidos
@@ -24,12 +27,18 @@ export default async function MenuPage() {
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-200 px-2.5 py-1 font-semibold text-stone-700">
               <span className="size-1.5 rounded-full bg-stone-500" aria-hidden />
-              Fechado agora
+              {availability.todayHours ? "Encerrado por hoje" : "Fechado hoje"}
             </span>
           )}
           <span className="text-stone-600 tabular-nums">
-            Funciona das {settings.openTime} às {settings.closeTime}
-            {nextSlot && <> · retirada a partir das {nextSlot}</>}
+            {availability.todayHours && <>Hoje: {availability.todayHours.from} às {availability.todayHours.to}</>}
+            {orderingToday && nextTime && <> · retirada a partir das {nextTime}</>}
+            {!orderingToday && nextDay && (
+              <>
+                {availability.todayHours ? " · " : ""}Peça agora e retire {nextDay.label.toLowerCase()}
+                {nextTime && <> a partir das {nextTime}</>}
+              </>
+            )}
           </span>
         </p>
       </div>

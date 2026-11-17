@@ -30,7 +30,7 @@ export function ProductsManager({ categories, products }: { categories: AdminCat
   const [error, setError] = useState<string | null>(null);
 
   // Atualização rápida (disponível/esgotado, estoque) sem abrir o formulário.
-  async function quick(id: string, data: { active?: boolean; stock?: number }) {
+  async function quick(id: string, data: { active?: boolean; stock?: number; trackStock?: boolean }) {
     setError(null);
     try {
       await api(`/api/admin/products/${id}`, "PATCH", data);
@@ -70,22 +70,7 @@ export function ProductsManager({ categories, products }: { categories: AdminCat
                       <p className="truncate font-semibold">{p.name}</p>
                       <p className="text-sm text-stone-600 tabular-nums">{formatBRL(p.priceCents)}</p>
                     </div>
-                    {p.trackStock && (
-                      <label className="flex items-center gap-1.5 text-sm text-stone-600">
-                        Estoque
-                        <input
-                          key={p.stock}
-                          type="number"
-                          min={0}
-                          defaultValue={p.stock}
-                          className="input min-h-9 w-20 px-2 text-sm"
-                          onBlur={(e) => {
-                            const stock = Math.max(0, Math.floor(Number(e.target.value) || 0));
-                            if (stock !== p.stock) quick(p.id, { stock });
-                          }}
-                        />
-                      </label>
-                    )}
+                    <StockControl product={p} onSave={(data) => quick(p.id, data)} />
                     <button
                       type="button"
                       role="switch"
@@ -239,27 +224,35 @@ function ProductForm({ product, categories, onDone }: { product: AdminProduct | 
       <div>
         <span className="label">Foto</span>
         <div className="flex items-center gap-3">
-          <ProductImage src={preview} name={name || "?"} category={categories.find((c) => c.id === categoryId)?.name} className="size-16 shrink-0 rounded-xl" />
+          <ProductImage src={preview} name={name || "?"} category={categories.find((c) => c.id === categoryId)?.name} className="size-20 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1 space-y-2">
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              aria-label="Enviar foto"
-              className="block w-full text-sm file:mr-2 file:cursor-pointer file:rounded-lg file:border-0 file:bg-stone-200 file:px-3 file:py-2 file:text-sm file:font-semibold"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  setUpload(await resizeImage(file));
-                  setRemoveImage(false);
-                } catch {
-                  setError("Não foi possível ler essa imagem.");
-                }
-              }}
-            />
+            {/* O input fica escondido; o rótulo funciona como botão. */}
+            <label className="btn-secondary btn-sm cursor-pointer">
+              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z" />
+                <circle cx="12" cy="13" r="3.2" />
+              </svg>
+              {preview ? "Trocar foto" : "Tirar ou escolher foto"}
+              <input
+                type="file"
+                // image/* deixa o celular oferecer a câmera; a foto é reduzida e convertida para JPEG antes do envio.
+                accept="image/*"
+                className="sr-only"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    setUpload(await resizeImage(file));
+                    setRemoveImage(false);
+                  } catch {
+                    setError("Não foi possível ler essa imagem. Tente outra foto.");
+                  }
+                }}
+              />
+            </label>
             {(upload || (product?.hasUpload && !removeImage)) && (
-              <button type="button" className="text-sm font-medium text-red-700 underline" onClick={() => { setUpload(null); setRemoveImage(true); }}>
-                Remover foto enviada
+              <button type="button" className="block text-sm font-medium text-red-700 underline" onClick={() => { setUpload(null); setRemoveImage(true); }}>
+                Remover foto
               </button>
             )}
           </div>
@@ -361,6 +354,81 @@ function CategoriesEditor({ categories, onChange }: { categories: AdminCategory[
         <button className="btn-primary">Adicionar</button>
       </form>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Estoque direto na lista: botões − / + e campo de quantidade. Sem controle,
+ * o produto vende sem limite até alguém marcar "Esgotado".
+ */
+function StockControl({
+  product: p,
+  onSave,
+}: {
+  product: AdminProduct;
+  onSave: (data: { stock?: number; trackStock?: boolean }) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+
+  if (!p.trackStock && !editing) {
+    return (
+      <button type="button" className="btn-secondary btn-sm" onClick={() => { setValue(""); setEditing(true); }}>
+        Definir estoque
+      </button>
+    );
+  }
+
+  if (!p.trackStock) {
+    const qty = Math.floor(Number(value));
+    return (
+      <form
+        className="flex items-center gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (value === "" || !Number.isFinite(qty) || qty < 0) return;
+          onSave({ trackStock: true, stock: qty });
+          setEditing(false);
+        }}
+      >
+        <label className="sr-only" htmlFor={`stock-new-${p.id}`}>Quantidade em estoque de {p.name}</label>
+        <input id={`stock-new-${p.id}`} type="number" min={0} inputMode="numeric" autoFocus placeholder="Qtd." className="input min-h-9 w-20 px-2 text-sm" value={value} onChange={(e) => setValue(e.target.value)} />
+        <button className="btn-primary btn-sm">Salvar</button>
+        <button type="button" className="btn btn-sm text-stone-600 hover:bg-stone-100" onClick={() => setEditing(false)}>Cancelar</button>
+      </form>
+    );
+  }
+
+  const step = (d: number) => onSave({ stock: Math.max(0, p.stock + d) });
+  const btn = "grid size-9 cursor-pointer place-items-center rounded-lg text-brand-800 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-40";
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`inline-flex items-center rounded-xl border ${p.stock === 0 ? "border-red-200 bg-red-50" : "border-brand-200 bg-brand-50"}`}>
+        <button type="button" className={btn} disabled={p.stock === 0} onClick={() => step(-1)} aria-label={`Diminuir estoque de ${p.name}`}>
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M5 12h14" /></svg>
+        </button>
+        <input
+          key={p.stock}
+          type="number"
+          min={0}
+          inputMode="numeric"
+          aria-label={`Estoque de ${p.name}`}
+          defaultValue={p.stock}
+          className="h-9 w-12 bg-transparent text-center text-sm font-semibold tabular-nums [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none"
+          onBlur={(e) => {
+            const stock = Math.max(0, Math.floor(Number(e.target.value) || 0));
+            if (stock !== p.stock) onSave({ stock });
+          }}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        />
+        <button type="button" className={btn} onClick={() => step(1)} aria-label={`Aumentar estoque de ${p.name}`}>
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+      </div>
+      <button type="button" className="text-xs font-medium text-stone-500 underline hover:text-stone-800" onClick={() => onSave({ trackStock: false })}>
+        Sem limite
+      </button>
     </div>
   );
 }

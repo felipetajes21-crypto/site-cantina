@@ -11,6 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const quickSchema = z.object({
   active: z.boolean().optional(),
   stock: z.number().int().min(0).max(100_000).optional(),
+  trackStock: z.boolean().optional(),
 });
 
 export const PUT = handle(async (req: Request, { params }: Ctx) => {

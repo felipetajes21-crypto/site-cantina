@@ -6,9 +6,3 @@ export async function getSettings() {
 }
 
 export type CantinaSettings = Awaited<ReturnType<typeof getSettings>>;
-
-export const parseOpenDays = (openDays: string) =>
-  openDays
-    .split(",")
-    .filter(Boolean)
-    .map(Number);

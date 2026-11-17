@@ -10,7 +10,8 @@ import { getPaymentProvider } from "./payments";
 import { NEXT_STATUS, type OrderStatus } from "./status";
 import type { z } from "zod";
 import type { orderSchema } from "./validation";
-import { formatTime } from "./time";
+import { formatTime, localInfo } from "./time";
+import { pickupText } from "./schedule";
 
 /** Prazo para pagar antes de o pedido ser cancelado automaticamente. */
 export const PAYMENT_TIMEOUT_MINUTES = 20;
@@ -32,6 +33,9 @@ export function serializeOrder(o: OrderWithItems) {
     note: o.note,
     pickupDate: o.pickupDate,
     pickupSlot: o.pickupSlot,
+    // Texto pronto, ex.: "Hoje às 12:15" ou "qua, 19/11 às 08:00".
+    pickupLabel: pickupText(o.pickupDate, o.pickupSlot, localInfo().date),
+    isToday: o.pickupDate === localInfo().date,
     pixPayload: o.status === "AWAITING_PAYMENT" ? o.pixPayload : null,
     paymentClaimed: !!o.paymentClaimedAt,
     // Prazo de pagamento já formatado no fuso da cantina.
@@ -56,14 +60,14 @@ export async function createOrder(userId: string, input: z.infer<typeof orderSch
   const availability = await getAvailability(settings);
   if (!availability.open) throw new HttpError(409, availability.reason ?? "Cantina fechada.");
 
-  // Valida o horário de retirada escolhido.
+  // Valida o dia e o horário de retirada escolhidos.
+  const day = availability.days.find((d) => d.date === input.pickupDate);
+  if (!day) throw new HttpError(409, "Esse dia não está disponível para retirada. Escolha outro.");
   let pickupSlot: string | null = null;
   if (input.pickup === "ASAP") {
-    if (!availability.asap) {
-      throw new HttpError(409, `A cantina abre às ${settings.openTime}. Escolha um horário de retirada.`);
-    }
+    if (!day.asap) throw new HttpError(409, "Escolha um horário de retirada.");
   } else {
-    const slot = availability.slots.find((s) => s.time === input.pickup);
+    const slot = day.slots.find((s) => s.time === input.pickup);
     if (!slot) throw new HttpError(409, "Esse horário não está mais disponível. Escolha outro.");
     if (slot.full) throw new HttpError(409, "Esse horário lotou. Escolha outro.");
     pickupSlot = slot.time;
@@ -118,7 +122,7 @@ export async function createOrder(userId: string, input: z.infer<typeof orderSch
         userId,
         totalCents,
         note: input.note || null,
-        pickupDate: availability.date,
+        pickupDate: day.date,
         pickupSlot,
         paymentProvider: provider.id,
         expiresAt: new Date(Date.now() + PAYMENT_TIMEOUT_MINUTES * 60_000),

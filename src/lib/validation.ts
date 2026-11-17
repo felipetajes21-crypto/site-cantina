@@ -2,6 +2,7 @@
 import { z } from "zod";
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
 /**
  * Normaliza o identificador de login: e-mail (minúsculas) ou telefone (só dígitos,
@@ -42,7 +43,8 @@ export const orderSchema = z.object({
     .min(1, "Seu carrinho está vazio.")
     .max(30),
   note: z.string().trim().max(200).optional(),
-  // "ASAP" (o mais rápido possível) ou um horário "HH:MM"
+  // Data da retirada (AAAA-MM-DD) e "ASAP" (o mais rápido possível) ou um horário "HH:MM"
+  pickupDate: z.string().regex(DATE, "Escolha o dia da retirada."),
   pickup: z.union([z.literal("ASAP"), z.string().regex(HHMM)]),
 });
 
@@ -71,18 +73,24 @@ export const categorySchema = z.object({
   sortOrder: z.number().int().min(0).max(999).default(0),
 });
 
-export const settingsSchema = z
+const dayHoursSchema = z
   .object({
-    cantinaName: z.string().trim().min(1).max(40),
-    acceptingOrders: z.boolean(),
-    openTime: z.string().regex(HHMM, "Horário inválido."),
-    closeTime: z.string().regex(HHMM, "Horário inválido."),
-    openDays: z.array(z.number().int().min(0).max(6)).max(7),
-    slotMinutes: z.number().int().min(5).max(60),
-    maxPerSlot: z.number().int().min(1).max(500),
-    prepMinutes: z.number().int().min(0).max(120),
-    pixKey: z.string().trim().max(77),
-    pixMerchantName: z.string().trim().min(1).max(25),
-    pixCity: z.string().trim().min(1).max(15),
+    open: z.boolean(),
+    from: z.string().regex(HHMM, "Horário inválido."),
+    to: z.string().regex(HHMM, "Horário inválido."),
   })
-  .refine((s) => s.openTime < s.closeTime, "O fechamento deve ser depois da abertura.");
+  .refine((d) => !d.open || d.from < d.to, "Em cada dia aberto, o fechamento deve ser depois da abertura.");
+
+export const settingsSchema = z.object({
+  cantinaName: z.string().trim().min(1).max(40),
+  acceptingOrders: z.boolean(),
+  schedule: z.array(dayHoursSchema).length(7),
+  daysAhead: z.number().int().min(0).max(14),
+  closedDates: z.array(z.string().regex(DATE, "Data inválida.")).max(100),
+  slotMinutes: z.number().int().min(5).max(60),
+  maxPerSlot: z.number().int().min(1).max(500),
+  prepMinutes: z.number().int().min(0).max(120),
+  pixKey: z.string().trim().max(77),
+  pixMerchantName: z.string().trim().min(1).max(25),
+  pixCity: z.string().trim().min(1).max(15),
+});
