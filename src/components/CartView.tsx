@@ -6,6 +6,7 @@ import { api } from "@/lib/client";
 import { formatBRL } from "@/lib/format";
 import type { Menu } from "@/lib/menu";
 import type { Availability, PickupDay } from "@/lib/slots";
+import { groupByHour, pickupTimes } from "@/lib/pickup-times";
 import { useCart } from "./cart";
 import { Stepper } from "./Stepper";
 
@@ -46,9 +47,10 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
 
   /** Ao trocar de dia: hoje com a cantina aberta sugere "o mais rápido possível"; nos outros dias, o primeiro horário. */
   function selectDay(day: PickupDay) {
+    const first = pickupTimes(day)[0] ?? "";
     setPickupDate(day.date);
-    setTime(day.earliest);
-    setPickup(day.asap ? "ASAP" : day.earliest);
+    setTime(first);
+    setPickup(day.asap ? "ASAP" : first || null);
   }
 
   if (!cart.ready) return null;
@@ -69,10 +71,18 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
 
   const selectedDay = availability?.days.find((d) => d.date === pickupDate);
   // Validação no navegador do horário digitado (o servidor confere de novo).
-  const timeError =
-    selectedDay && pickup && pickup !== "ASAP" && (pickup < selectedDay.earliest || pickup > selectedDay.latest)
-      ? `Escolha um horário entre ${selectedDay.earliest} e ${selectedDay.latest}.`
-      : null;
+  // Só existem horários dentro do funcionamento do dia (definido no painel).
+  const times = selectedDay ? pickupTimes(selectedDay) : [];
+  const byHour = groupByHour(times);
+  const timeError = pickup && pickup !== "ASAP" && !times.includes(pickup) ? "Escolha a hora e os minutos da retirada." : null;
+
+  /** Troca a hora mantendo os minutos, se existirem nessa hora; senão usa o primeiro minuto disponível. */
+  function chooseTime(hour: string, minute: string) {
+    const minutes = byHour.get(hour) ?? [];
+    const next = `${hour}:${minutes.includes(minute) ? minute : minutes[0]}`;
+    setTime(next);
+    setPickup(next);
+  }
 
   async function submit() {
     if (!pickupDate || !pickup) return setError("Escolha o dia e o horário de retirada.");
@@ -176,26 +186,39 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
                     hint="A cantina prepara assim que o pedido chegar."
                   />
                 )}
-                <TimeOption
-                  selected={pickup !== "ASAP"}
-                  onSelect={() => setPickup(time || selectedDay.earliest)}
-                  title="Escolher horário"
-                  hint={`Qualquer horário entre ${selectedDay.earliest} e ${selectedDay.latest}.`}
-                >
-                  <input
-                    type="time"
-                    aria-label="Horário da retirada"
-                    className="input mt-2 w-40 text-lg font-semibold tabular-nums"
-                    min={selectedDay.earliest}
-                    max={selectedDay.latest}
-                    value={time}
-                    onFocus={() => setPickup(time || selectedDay.earliest)}
-                    onChange={(e) => {
-                      setTime(e.target.value);
-                      setPickup(e.target.value || null);
-                    }}
-                  />
-                </TimeOption>
+                {times.length > 0 && (
+                  <TimeOption
+                    selected={pickup !== "ASAP"}
+                    onSelect={() => setPickup(time || times[0])}
+                    title="Escolher horário"
+                    hint={`A cantina funciona das ${selectedDay.hours.from} às ${selectedDay.hours.to} neste dia.`}
+                  >
+                    {/* Duas listas: só aparecem horas e minutos dentro do funcionamento. */}
+                    <div className="mt-2 flex items-center gap-2" onFocus={() => setPickup(time || times[0])}>
+                      <select
+                        aria-label="Hora da retirada"
+                        className="input w-24 text-lg font-semibold tabular-nums"
+                        value={(time || times[0]).slice(0, 2)}
+                        onChange={(e) => chooseTime(e.target.value, (time || times[0]).slice(3, 5))}
+                      >
+                        {[...byHour.keys()].map((h) => (
+                          <option key={h} value={h}>{h}h</option>
+                        ))}
+                      </select>
+                      <span className="text-lg font-semibold text-stone-500">:</span>
+                      <select
+                        aria-label="Minutos da retirada"
+                        className="input w-24 text-lg font-semibold tabular-nums"
+                        value={(time || times[0]).slice(3, 5)}
+                        onChange={(e) => chooseTime((time || times[0]).slice(0, 2), e.target.value)}
+                      >
+                        {(byHour.get((time || times[0]).slice(0, 2)) ?? []).map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </TimeOption>
+                )}
                 {timeError && <p className="text-sm font-medium text-red-700" role="alert">{timeError}</p>}
               </div>
             )}

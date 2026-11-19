@@ -7,6 +7,7 @@ import { HttpError } from "./api";
 import type { CantinaSettings } from "./settings";
 import { addDays, dayLabel, parseClosedDates, parseSchedule, weekdayOf, type DayHours } from "./schedule";
 import { fromMinutes, localInfo, toMinutes } from "./time";
+import { pickupTimes } from "./pickup-times";
 
 export type PickupDay = {
   date: string; // AAAA-MM-DD
@@ -48,16 +49,19 @@ export async function getAvailability(settings: CantinaSettings): Promise<Availa
     const earliestMin = i === 0 ? Math.max(openMin, Math.ceil((now.minutes + settings.prepMinutes) / 5) * 5) : openMin;
     const latestMin = closeMin; // pode retirar até o horário de fechamento
     const asap = i === 0 && now.minutes >= openMin && now.minutes < closeMin;
-    if (earliestMin > latestMin && !asap) continue;
-
-    days.push({
+    const day = {
       date,
       label: dayLabel(date, now.date),
       hours: { from: hours.from, to: hours.to },
       asap,
       earliest: fromMinutes(Math.min(earliestMin, latestMin)),
       latest: fromMinutes(latestMin),
-    });
+    };
+    // O dia só aparece se houver pelo menos um horário para escolher.
+    if (earliestMin > latestMin || pickupTimes(day).length === 0) {
+      if (!asap) continue;
+    }
+    days.push(day);
   }
 
   if (days.length === 0) {
@@ -74,10 +78,9 @@ export async function getAvailability(settings: CantinaSettings): Promise<Availa
   return { ...base, open: true, reason: null, days };
 }
 
-/** Valida o horário escolhido pelo cliente dentro da faixa do dia. */
+/** Valida o horário escolhido: precisa estar na lista que o carrinho oferece. */
 export function isWithinDay(day: PickupDay, time: string) {
-  const t = toMinutes(time);
-  return t >= toMinutes(day.earliest) && t <= toMinutes(day.latest);
+  return pickupTimes(day).includes(time);
 }
 
 /**
