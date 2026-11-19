@@ -4,7 +4,6 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
-const DEMO_PIX_KEY = "00000000-0000-4000-8000-000000000000";
 
 const SAMPLE: { category: string; products: [name: string, description: string, priceCents: number, stock?: number][] }[] = [
   {
@@ -56,7 +55,6 @@ async function main() {
       // Todos os dias, das 06:00 às 23:00, para facilitar os testes.
       schedule: JSON.stringify(Array.from({ length: 7 }, () => ({ open: true, from: "06:00", to: "23:00" }))),
       daysAhead: 2,
-      pixKey: DEMO_PIX_KEY,
     },
   });
 

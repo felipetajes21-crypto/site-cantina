@@ -27,6 +27,7 @@ model User {
 model Category {
   id        String    @id @default(cuid())
   name      String
+  icon      String    @default("") // cafe | salgado | lanche | bebida | doce | outro (vazio = pelo nome)
   sortOrder Int       @default(0)
   products  Product[]
 }

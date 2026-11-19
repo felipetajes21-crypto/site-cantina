@@ -1,6 +1,6 @@
 # Site da Cantina — pedidos antecipados
 
-O cliente pede e paga pelo celular (Pix) e só retira no balcão, sem fila. A cantina acompanha a fila de pedidos em tempo real por um painel.
+O cliente pede e paga pelo celular (Pix ou cartão, pelo Mercado Pago) e só retira no balcão, sem fila. A cantina acompanha a fila de pedidos em tempo real por um painel.
 
 ## Como rodar no seu computador
 
@@ -33,8 +33,8 @@ Abra http://localhost:3000. O `npm run setup` cria o banco SQLite, o usuário ad
 
 1. Abra o painel em uma aba (`/admin`), faça login e clique em **Ativar som de novo pedido**.
 2. Em outra aba (ou no celular), crie uma conta de cliente, adicione itens, escreva uma observação, escolha o dia e digite o horário de retirada (ou "o mais rápido possível") e clique em **Fazer pedido e pagar**.
-3. Na tela do Pix, clique em **Já paguei**. O pedido entra na fila da cantina e toca o alerta.
-4. No painel o pedido aparece em **Recebido** com o selo **Conferir Pix**. Clique em **Pix conferido** e depois em **Marcar como pronto**. A tela do cliente acompanha sozinha.
+3. Na página de pagamento (de teste), clique em **Aprovar pagamento**. O pedido entra na fila da cantina e toca o alerta.
+4. No painel o pedido aparece em **Recebido**. Clique em **Marcar como pronto**. A tela do cliente acompanha sozinha.
 5. Em **Retirada**, digite o número do pedido (ou leia o QR Code do cliente com a câmera) e confirme.
 6. Em **Meus pedidos**, teste o **Repetir pedido**. Em **Relatórios**, veja a venda registrada.
 
@@ -42,6 +42,7 @@ O seed deixa a cantina aberta todos os dias, das 06:00 às 23:00, para facilitar
 
 ### O que o dono controla pelo painel
 
+- **Categorias**: criar, renomear, escolher o ícone, mudar a ordem no cardápio e excluir (os produtos vão para outra categoria).
 - **Produtos**: criar, editar, remover, preço, categoria e foto. A foto pode ser tirada na hora pelo celular, e o site a reduz antes de enviar.
 - **Estoque**: em **Produtos**, use "Definir estoque" e ajuste com − / +. Cada pedido desconta do estoque, e o produto aparece como "Esgotado" quando zera. "Sem limite" desliga o controle.
 - **Disponível / Esgotado**: um toque para tirar um produto do cardápio.
@@ -58,7 +59,7 @@ Num computador em que você não pode instalar programas, abra o repositório no
 
 ## Antes de usar de verdade
 
-1. **Forma de pagamento**: ligue o PayPal (veja abaixo) ou, se for usar Pix, troque a chave Pix de demonstração pela da cantina em **Painel → Configurações**.
+1. **Forma de pagamento**: ligue o Mercado Pago (veja abaixo). Enquanto isso, o site usa o pagamento de teste.
 2. **Senha do admin**: troque `ADMIN_PASSWORD` antes do primeiro deploy (ou use `npm run admin:create`).
 3. **AUTH_SECRET**: gere um valor novo (`openssl rand -base64 32`). O site se recusa a rodar em produção com o valor de exemplo.
 4. **Horário de funcionamento e limite por intervalo**: ajuste em Configurações.
@@ -69,24 +70,28 @@ Escolha em **Painel → Configurações → Forma de pagamento**:
 
 | Forma | Como funciona | Devolução quando a cantina recusa |
 | --- | --- | --- |
-| **PayPal** | O cliente paga na página do PayPal (cartão ou conta PayPal) e volta para o site. O site confirma direto com o PayPal e o pedido entra sozinho na fila. | Automática: o site pede a devolução total ao PayPal. |
-| **Pagamento de teste** | Igual ao PayPal, mas com uma página de teste do próprio site. Serve para experimentar sem conta e sem dinheiro. Desligado em produção. | Automática (simulada). |
-| **Pix com a chave da cantina** | QR Code e copia e cola. O cliente toca em "Já paguei" e a cantina confere no banco ("Conferir Pix"). | Manual: o site avisa a cantina para devolver pelo app do banco. |
+| **Mercado Pago** (recomendado) | O cliente vai para a página do Mercado Pago e escolhe **Pix** (o QR Code é gerado lá) ou **cartão**. O site confirma o pagamento direto com o Mercado Pago e o pedido entra sozinho na fila. No Pix, a tela do pedido fica conferindo até o pagamento cair. | Automática: o site pede a devolução total ao Mercado Pago (também no Pix). |
+| **PayPal** | Igual, na página do PayPal (cartão ou conta PayPal). | Automática. |
+| **Pagamento de teste** | Igual, com uma página de teste do próprio site. Serve para experimentar sem conta e sem dinheiro. Desligado em produção. | Automática (simulada). |
 
-Pedidos não pagos são cancelados sozinhos em 20 minutos (e o estoque volta). Para **recusar** um pedido, use o botão **X** no cartão do pedido no painel.
+Pedidos não pagos são cancelados sozinhos em 20 minutos (e o estoque volta); antes de cancelar, o site confere uma última vez no gateway. Para **recusar** um pedido, use o botão **X** no cartão do pedido no painel.
 
-#### Ligar o PayPal
+#### Ligar o Mercado Pago
 
-1. Crie uma conta em [developer.paypal.com](https://developer.paypal.com) e, em **Apps & Credentials**, crie um app. Copie o **Client ID** e o **Secret**.
-2. Defina as variáveis `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` e `PAYPAL_ENV` (`sandbox` para testar com contas de teste do PayPal, `live` para cobrar de verdade). Na Vercel: **Settings → Environment Variables**.
-3. Publique de novo e escolha **PayPal** no painel.
-4. Faça um pedido de teste no modo `sandbox`, pague com uma conta de teste do PayPal e recuse o pedido no painel para conferir a devolução.
+1. Entre em [mercadopago.com.br/developers/panel](https://www.mercadopago.com.br/developers/panel) com a conta da cantina e crie uma aplicação do tipo **Checkout Pro**.
+2. Em **Credenciais de teste**, copie o **Access Token** (começa com `TEST-`) e defina a variável `MERCADOPAGO_ACCESS_TOKEN`. Na Vercel: **Settings → Environment Variables**.
+3. Publique de novo e escolha **Mercado Pago** no painel. Faça um pedido de teste com os usuários e cartões de teste do Mercado Pago e recuse o pedido no painel para conferir a devolução.
+4. Funcionando, troque pelo **Access Token de produção** para cobrar de verdade.
 
-A integração segue a documentação oficial da API do PayPal (Orders v2: criar, capturar e devolver), mas ainda não foi testada com uma conta real; por isso o passo 4 é importante. O código fica em `src/lib/payments/paypal.ts`.
+Com o site publicado em `https`, o Mercado Pago também avisa o site sozinho quando o pagamento cai (o endereço de notificação é enviado automaticamente). A integração segue a documentação oficial da API, mas ainda não foi testada com uma conta real; por isso o passo 3 é importante. O código fica em `src/lib/payments/mercadopago.ts`.
 
-#### Outro gateway (Mercado Pago, Stripe, PagSeguro…)
+#### Ligar o PayPal (opcional)
 
-Crie um arquivo em `src/lib/payments/` implementando `PaymentProvider` (`createCharge`, `confirmReturn`, `refund`), usando `paypal.ts` como modelo, e registre-o em `src/lib/payments/index.ts`. O resto do site (carrinho, painel, devolução) já funciona com ele.
+Crie um app em [developer.paypal.com](https://developer.paypal.com) e defina `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` e `PAYPAL_ENV` (`sandbox` ou `live`). O código fica em `src/lib/payments/paypal.ts` e também ainda não foi testado com uma conta real.
+
+#### Outro gateway (Stripe, PagSeguro…)
+
+Crie um arquivo em `src/lib/payments/` implementando `PaymentProvider` (`createCharge`, `confirmReturn`, `checkPayment`, `refund`), usando `mercadopago.ts` como modelo, e registre-o em `src/lib/payments/index.ts`. Carrinho, painel e devolução já funcionam com ele.
 
 ## Variáveis de ambiente
 
@@ -96,7 +101,8 @@ Crie um arquivo em `src/lib/payments/` implementando `PaymentProvider` (`createC
 | `AUTH_SECRET` | sim | Segredo que assina as sessões (mínimo 32 caracteres) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | não | Admin criado pelo seed, se ainda não existir |
 | `APP_TIMEZONE` | não | Fuso horário (padrão `America/Sao_Paulo`) |
-| `PAYMENT_PROVIDER` | não | Forma de pagamento padrão: `static-pix`, `teste` ou `paypal` (pode ser trocada no painel) |
+| `PAYMENT_PROVIDER` | não | Forma de pagamento padrão: `mercadopago`, `paypal` ou `teste` (pode ser trocada no painel) |
+| `MERCADOPAGO_ACCESS_TOKEN` | para o Mercado Pago | Access Token da aplicação (teste: `TEST-…`) |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | para o PayPal | Credenciais do app no developer.paypal.com |
 | `PAYPAL_ENV` | para o PayPal | `sandbox` (testes) ou `live` (cobrança real) |
 | `APP_URL` | não | Endereço público do site, usado no retorno do PayPal |
@@ -124,7 +130,7 @@ A Vercel hospeda o site e o Neon fornece o PostgreSQL; os planos gratuitos dos d
 4. Em **Settings → Environment Variables**, adicione: `AUTH_SECRET` (valor novo), `ADMIN_EMAIL`, `ADMIN_PASSWORD` e, se não quiser os produtos de exemplo, `SEED_SAMPLE_DATA=false`.
 5. Em **Settings → Build & Deployment → Build Command**, informe `npm run vercel-build`.
 6. Faça o deploy. O build troca o Prisma para PostgreSQL, cria as tabelas e o admin.
-7. Acesse `https://seu-projeto.vercel.app/admin`, entre e cadastre a chave Pix.
+7. Acesse `https://seu-projeto.vercel.app/admin`, entre e configure a forma de pagamento (veja "Ligar o Mercado Pago").
 
 Observação: este caminho foi validado até a checagem do esquema PostgreSQL pelo Prisma; o deploy em si não foi executado neste ambiente. Se algo falhar no primeiro build, o log da Vercel mostra a etapa.
 
@@ -136,7 +142,7 @@ Observação: este caminho foi validado até a checagem do esquema PostgreSQL pe
 - **Tailwind CSS 4**: mobile-first, cores neutras com uma cor de destaque.
 - **Prisma**: SQLite no desenvolvimento, PostgreSQL em produção (`scripts/use-postgres.mjs` troca o provider no build).
 - **Tempo real por polling**: a tela do pedido e o painel consultam a API a cada 4 segundos. Funciona em qualquer hospedagem, inclusive serverless, onde WebSocket não é viável.
-- **Pagamento plugável**: `src/lib/payments/` define a interface `PaymentProvider`; o padrão é Pix estático.
+- **Pagamento plugável**: `src/lib/payments/` define a interface `PaymentProvider`; Mercado Pago, PayPal e pagamento de teste.
 
 ```
 prisma/
@@ -152,8 +158,7 @@ src/
     auth.ts, session-token.ts   senha (bcrypt), sessão JWT em cookie httpOnly
     orders.ts            regras do pedido: criar, pagar, avançar, cancelar, expirar
     slots.ts             horários de retirada e limite por intervalo
-    pix.ts               gera o Pix copia e cola (BR Code + CRC16)
-    payments/            interface do provedor de pagamento + Pix estático
+    payments/            formas de pagamento: Mercado Pago, PayPal e pagamento de teste
     validation.ts        esquemas zod (validação no servidor)
   app/
     (loja)/              cliente: cardápio, carrinho, pedidos, login, cadastro
@@ -168,15 +173,15 @@ src/
 | --- | --- |
 | `/` cardápio por categorias | `/admin/login` |
 | `/carrinho` itens, observações, dia e horário de retirada | `/admin` fila de pedidos em tempo real |
-| `/pedidos/[id]` Pix, status e QR Code de retirada | `/admin/retirada` leitor de QR Code / número |
-| `/pedidos` histórico e "repetir pedido" | `/admin/produtos` produtos, categorias, estoque |
+| `/pedidos/[id]` pagamento, status e QR Code de retirada | `/admin/retirada` leitor de QR Code / número |
+| `/pedidos` histórico e "repetir pedido" | `/admin/produtos`, `/admin/categorias` produtos, estoque e categorias |
 | `/entrar`, `/cadastro` | `/admin/relatorios`, `/admin/configuracoes` |
 
 ### Fluxo do pedido
 
 `Aguardando pagamento → Recebido → Pronto para retirada → Retirado` (ou `Cancelado`).
 
-O painel mostra só **Recebido** e **Pronto para retirada**. O pedido entra em Recebido quando o cliente toca em "Já paguei"; até a cantina clicar em **Pix conferido**, o cartão mostra o selo **Conferir Pix**. Entregar o pedido no balcão também marca o pagamento como conferido. Pedidos sem "Já paguei" não aparecem e são cancelados sozinhos em 20 minutos.
+O painel mostra só **Recebido** e **Pronto para retirada**. O pedido entra em Recebido quando o pagamento é confirmado pelo gateway. Pedidos não pagos não aparecem e são cancelados sozinhos em 20 minutos.
 
 ### Segurança
 

@@ -1,11 +1,26 @@
 // Ícones desenhados por categoria (traço único de 1.6) e as cores de cada uma.
 // Usados no lugar da foto quando o produto não tem imagem, e nos atalhos do cardápio.
 
-export type CategoryKind = "salgado" | "lanche" | "bebida" | "doce" | "outro";
+export type CategoryKind = "cafe" | "salgado" | "lanche" | "bebida" | "doce" | "outro";
 
-/** Descobre o tipo da categoria pelo nome (funciona com nomes criados no painel). */
-export function categoryKind(name: string | undefined): CategoryKind {
+/** Ícones que o dono pode escolher para cada categoria (painel → Categorias). */
+export const CATEGORY_KINDS: { kind: CategoryKind; label: string }[] = [
+  { kind: "cafe", label: "Café" },
+  { kind: "salgado", label: "Salgado" },
+  { kind: "lanche", label: "Lanche" },
+  { kind: "bebida", label: "Bebida" },
+  { kind: "doce", label: "Doce" },
+  { kind: "outro", label: "Outro" },
+];
+
+/**
+ * Ícone da categoria: o escolhido no painel ou, se nenhum, descoberto pelo
+ * nome (funciona com nomes criados no painel).
+ */
+export function categoryKind(name: string | undefined, icon?: string | null): CategoryKind {
+  if (icon && CATEGORY_KINDS.some((k) => k.kind === icon)) return icon as CategoryKind;
   const n = (name ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (/^cafe|cafes|cafeteria|capuccino|cappuccino|expresso/.test(n)) return "cafe";
   if (/salgad|empad|pastel|coxinha|esfih/.test(n)) return "salgado";
   if (/lanche|sanduich|burger|tapioca|wrap|prato|refei/.test(n)) return "lanche";
   if (/bebida|suco|cafe|cha|refri|agua|drink/.test(n)) return "bebida";
@@ -15,6 +30,7 @@ export function categoryKind(name: string | undefined): CategoryKind {
 
 /** Fundo e cor do traço de cada categoria (tons suaves, sempre legíveis). */
 export const CATEGORY_TINT: Record<CategoryKind, string> = {
+  cafe: "bg-[oklch(93%_0.05_60)] text-[oklch(42%_0.1_45)]", // caramelo
   salgado: "bg-[oklch(95%_0.06_88)] text-[oklch(45%_0.1_70)]", // dourado
   lanche: "bg-[oklch(94.5%_0.05_55)] text-[oklch(50%_0.15_45)]", // laranja
   bebida: "bg-[oklch(96.5%_0.07_102)] text-[oklch(46%_0.1_95)]", // limão
@@ -23,6 +39,15 @@ export const CATEGORY_TINT: Record<CategoryKind, string> = {
 };
 
 const PATHS: Record<CategoryKind, React.ReactNode> = {
+  // Xícara de café com vapor
+  cafe: (
+    <>
+      <path d="M5 10.5h12v3.2A5.8 5.8 0 0 1 11.2 19.5h-.4A5.8 5.8 0 0 1 5 13.7Z" />
+      <path d="M17 11.5h.8a2.6 2.6 0 0 1 0 5.2H16.5" />
+      <path d="M8.5 7c-.8-.9.8-1.6 0-2.6M12.5 7c-.8-.9.8-1.6 0-2.6" />
+      <path d="M4 21.5h14" />
+    </>
+  ),
   // Coxinha
   salgado: (
     <>

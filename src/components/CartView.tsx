@@ -97,7 +97,7 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
         pickup,
       });
       cart.clear();
-      // Pagamento online (PayPal etc.): vai para a página do gateway; Pix: tela do pedido.
+      // Vai para a página de pagamento (Mercado Pago, PayPal…), onde o cliente escolhe Pix ou cartão.
       window.location.href = redirectUrl ?? `/pedidos/${id}`;
     } catch (err) {
       setError((err as Error).message);

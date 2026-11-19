@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
-/** Desenha um QR Code a partir de um texto (Pix copia e cola ou código do pedido). */
+/** Desenha um QR Code a partir de um texto (código de retirada do pedido). */
 export function QrCode({ value, size = 220, label }: { value: string; size?: number; label: string }) {
   const [src, setSrc] = useState<string | null>(null);
 

@@ -17,7 +17,7 @@ export const testApprovalToken = sign;
 
 export const testGateway: PaymentProvider = {
   id: "teste",
-  label: "Pagamento de teste (simula PayPal, sem dinheiro de verdade)",
+  label: "Pagamento de teste (simula o Mercado Pago, sem dinheiro de verdade)",
   autoConfirms: true,
   canRefund: true,
   unavailableReason: () =>

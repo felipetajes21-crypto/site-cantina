@@ -8,7 +8,7 @@ import { api } from "@/lib/client";
 import { formatBRL } from "@/lib/format";
 import { ProductImage } from "../ProductImage";
 
-export type AdminCategory = { id: string; name: string; sortOrder: number };
+export type AdminCategory = { id: string; name: string; icon: string; sortOrder: number };
 export type AdminProduct = {
   id: string;
   name: string;
@@ -26,7 +26,6 @@ export type AdminProduct = {
 export function ProductsManager({ categories, products }: { categories: AdminCategory[]; products: AdminProduct[] }) {
   const router = useRouter();
   const [editing, setEditing] = useState<AdminProduct | "new" | null>(null);
-  const [showCategories, setShowCategories] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Atualização rápida (disponível/esgotado, estoque) sem abrir o formulário.
@@ -45,14 +44,14 @@ export function ProductsManager({ categories, products }: { categories: AdminCat
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Produtos</h1>
         <div className="flex gap-2">
-          <button type="button" className="btn-secondary btn-sm" onClick={() => setShowCategories(true)}>Categorias</button>
+          <a href="/admin/categorias" className="btn-secondary btn-sm">Categorias</a>
           <button type="button" className="btn-primary btn-sm" disabled={categories.length === 0} onClick={() => setEditing("new")}>
             Novo produto
           </button>
         </div>
       </div>
       {error && <p role="alert" className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-      {categories.length === 0 && <p className="card p-6 text-center text-stone-600">Crie uma categoria para começar a cadastrar produtos.</p>}
+      {categories.length === 0 && <p className="card p-6 text-center text-stone-600">Crie uma categoria em <a href="/admin/categorias" className="font-semibold text-brand-800 underline">Categorias</a> para começar a cadastrar produtos.</p>}
 
       {categories.map((category) => {
         const list = products.filter((p) => p.categoryId === category.id);
@@ -65,7 +64,7 @@ export function ProductsManager({ categories, products }: { categories: AdminCat
               <ul className="card divide-y divide-stone-200">
                 {list.map((p) => (
                   <li key={p.id} className="flex flex-wrap items-center gap-3 p-3">
-                    <ProductImage src={p.image} name={p.name} category={category.name} className="size-12 shrink-0 rounded-lg" />
+                    <ProductImage src={p.image} name={p.name} category={category.name} icon={category.icon} className="size-12 shrink-0 rounded-lg" />
                     <div className="min-w-0 flex-1 basis-40">
                       <p className="truncate font-semibold">{p.name}</p>
                       <p className="text-sm text-stone-600 tabular-nums">{formatBRL(p.priceCents)}</p>
@@ -104,11 +103,7 @@ export function ProductsManager({ categories, products }: { categories: AdminCat
           />
         </Modal>
       )}
-      {showCategories && (
-        <Modal title="Categorias" onClose={() => setShowCategories(false)}>
-          <CategoriesEditor categories={categories} onChange={() => router.refresh()} />
-        </Modal>
-      )}
+
     </>
   );
 }
@@ -224,7 +219,7 @@ function ProductForm({ product, categories, onDone }: { product: AdminProduct | 
       <div>
         <span className="label">Foto</span>
         <div className="flex items-center gap-3">
-          <ProductImage src={preview} name={name || "?"} category={categories.find((c) => c.id === categoryId)?.name} className="size-20 shrink-0 rounded-xl" />
+          <ProductImage src={preview} name={name || "?"} category={categories.find((c) => c.id === categoryId)?.name} icon={categories.find((c) => c.id === categoryId)?.icon} className="size-20 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1 space-y-2">
             {/* O input fica escondido; o rótulo funciona como botão. */}
             <label className="btn-secondary btn-sm cursor-pointer">
@@ -287,76 +282,6 @@ function ProductForm({ product, categories, onDone }: { product: AdminProduct | 
   );
 }
 
-function CategoriesEditor({ categories, onChange }: { categories: AdminCategory[]; onChange: () => void }) {
-  const [newName, setNewName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  async function run(fn: () => Promise<unknown>) {
-    setError(null);
-    try {
-      await fn();
-      onChange();
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-stone-600">A ordem define a sequência no cardápio (menor aparece primeiro).</p>
-      <ul className="space-y-2">
-        {categories.map((c) => (
-          <li key={c.id} className="flex items-center gap-2">
-            <input
-              className="input min-w-0 flex-1"
-              aria-label="Nome da categoria"
-              defaultValue={c.name}
-              maxLength={40}
-              onBlur={(e) => {
-                const name = e.target.value.trim();
-                if (name && name !== c.name) run(() => api(`/api/admin/categories/${c.id}`, "PUT", { name, sortOrder: c.sortOrder }));
-              }}
-            />
-            <input
-              type="number"
-              className="input w-16 px-2"
-              aria-label={`Ordem de ${c.name}`}
-              min={0}
-              max={999}
-              defaultValue={c.sortOrder}
-              onBlur={(e) => {
-                const sortOrder = Math.max(0, Math.floor(Number(e.target.value) || 0));
-                if (sortOrder !== c.sortOrder) run(() => api(`/api/admin/categories/${c.id}`, "PUT", { name: c.name, sortOrder }));
-              }}
-            />
-            <button
-              type="button"
-              className="btn-danger btn-sm"
-              onClick={() => confirm(`Excluir a categoria "${c.name}"?`) && run(() => api(`/api/admin/categories/${c.id}`, "DELETE"))}
-            >
-              Excluir
-            </button>
-          </li>
-        ))}
-      </ul>
-      <form
-        className="flex gap-2 border-t border-stone-200 pt-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!newName.trim()) return;
-          run(async () => {
-            await api("/api/admin/categories", "POST", { name: newName, sortOrder: categories.length });
-            setNewName("");
-          });
-        }}
-      >
-        <input className="input flex-1" placeholder="Nova categoria" aria-label="Nova categoria" maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <button className="btn-primary">Adicionar</button>
-      </form>
-      {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-    </div>
-  );
-}
 
 /**
  * Estoque direto na lista: botões − / + e campo de quantidade. Sem controle,

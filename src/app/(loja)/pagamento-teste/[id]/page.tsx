@@ -40,7 +40,7 @@ export default async function TestPaymentPage({ params }: { params: Promise<{ id
             <span className="font-display text-3xl font-extrabold tabular-nums">{formatBRL(order.totalCents)}</span>
           </div>
           <p className="text-sm text-stone-600">
-            É aqui que o cliente pagaria com cartão ou conta PayPal. Na versão final, esta tela é a do próprio PayPal.
+            É aqui que o cliente pagaria. Na versão final, esta é a tela do Mercado Pago, onde o cliente escolhe Pix ou cartão.
           </p>
           {done ? (
             <Link href={`/pedidos/${order.id}`} className="btn-primary w-full">Ver pedido</Link>

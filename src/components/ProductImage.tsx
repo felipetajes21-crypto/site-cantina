@@ -5,15 +5,17 @@ export function ProductImage({
   src,
   name,
   category,
+  icon,
   className = "",
 }: {
   src: string | null;
   name: string;
   category?: string;
+  icon?: string | null;
   className?: string;
 }) {
   if (!src) {
-    const kind = categoryKind(category ?? name);
+    const kind = categoryKind(category ?? name, icon);
     return (
       <div aria-hidden className={`grid place-items-center ${CATEGORY_TINT[kind]} ${className}`}>
         <CategoryIcon kind={kind} className="size-[42%]" />

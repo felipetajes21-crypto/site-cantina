@@ -80,16 +80,14 @@ export function OrdersBoard() {
     setSound(on);
   }
 
-  async function act(order: OrderDTO, action: "confirm_payment" | "advance" | "cancel") {
+  async function act(order: OrderDTO, action: "advance" | "cancel") {
     if (
       action === "cancel" &&
       !confirm(
         `Recusar o pedido ${orderNumber(order.id)}?\n\n` +
-          (order.paymentConfirmed && order.paymentMethod !== "static-pix"
+          (order.paymentConfirmed
             ? `O valor de ${formatBRL(order.totalCents)} será devolvido automaticamente ao cliente.`
-            : order.paymentMethod === "static-pix"
-              ? "Se o cliente já fez o Pix, você precisa devolver pelo app do banco."
-              : "O cliente será avisado."),
+            : "O cliente será avisado."),
       )
     )
       return;
@@ -104,7 +102,7 @@ export function OrdersBoard() {
             res.refund === "REFUNDED"
               ? `Pedido ${orderNumber(order.id)} recusado. ${formatBRL(order.totalCents)} devolvidos ao cliente.`
               : res.refund === "MANUAL"
-                ? `Pedido ${orderNumber(order.id)} recusado. Devolva ${formatBRL(order.totalCents)} do Pix pelo app do banco.`
+                ? `Pedido ${orderNumber(order.id)} recusado. Devolva ${formatBRL(order.totalCents)} pelo painel do gateway de pagamento.`
                 : `Pedido ${orderNumber(order.id)} recusado.`,
         });
       }
@@ -221,15 +219,14 @@ function OrderCard({
 }: {
   order: OrderDTO;
   busy: boolean;
-  onAct: (order: OrderDTO, action: "confirm_payment" | "advance" | "cancel") => void;
+  onAct: (order: OrderDTO, action: "advance" | "cancel") => void;
 }) {
-  // Pix ainda não conferido pela cantina (o cliente tocou em "Já paguei").
-  const checkPix = !o.paymentConfirmed && o.paymentMethod === "static-pix";
+
   // Cada pedido é uma comanda: cabeçalho com número e horário, picote, itens.
   return (
     <article
       className={`card px-4 pt-3.5 pb-3.5 [--tear-bg:var(--color-stone-50)] ${
-        checkPix ? "border-saffron-400" : ""
+        ""
       } ${o.status === "READY" ? "border-brand-200" : ""}`}
       style={{ "--tear-inset": "1rem" } as React.CSSProperties}
     >
@@ -259,21 +256,13 @@ function OrderCard({
       </ul>
       {o.note && <p className="mt-2 rounded-md bg-saffron-100 px-2 py-1 text-[13px] font-semibold text-saffron-900">Pedido: {o.note}</p>}
 
-      {checkPix && (
-        <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-saffron-100 px-2.5 py-2 text-sm">
-          <span className="font-semibold text-saffron-900">
-            Conferir Pix · <span className="tabular-nums">{formatBRL(o.totalCents)}</span>
-          </span>
-          <button
-            type="button"
-            className="cursor-pointer rounded-md px-2 py-1 text-[13px] font-semibold text-saffron-900 underline underline-offset-2 hover:bg-saffron-300/50 disabled:opacity-50"
-            disabled={busy}
-            onClick={() => onAct(o, "confirm_payment")}
-          >
-            Pix conferido
-          </button>
-        </div>
-      )}
+      <p className="mt-3 flex items-center justify-between gap-2 text-sm text-stone-600">
+        <span className="inline-flex items-center gap-1.5 font-medium text-emerald-800">
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+          Pago
+        </span>
+        <span className="font-semibold tabular-nums">{formatBRL(o.totalCents)}</span>
+      </p>
 
       <div className="mt-3 flex gap-2">
         <button type="button" className="btn-primary btn-sm flex-1 whitespace-nowrap" disabled={busy} onClick={() => onAct(o, "advance")}>

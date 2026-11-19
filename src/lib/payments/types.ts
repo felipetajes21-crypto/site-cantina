@@ -1,13 +1,11 @@
 // Contrato que qualquer forma de pagamento implementa.
 //
-// Há dois tipos de cobrança:
-// - "pix": o site mostra QR Code / copia e cola (Pix com a chave da cantina).
-// - "redirect": o cliente vai para a página de pagamento do gateway (PayPal,
-//   Mercado Pago, Stripe…) e volta para /api/payments/return, onde o site
-//   confirma o pagamento direto com o gateway.
+// O cliente vai para a página de pagamento do gateway (Mercado Pago, PayPal,
+// Stripe…), escolhe como pagar (Pix, cartão…) e volta para
+// /api/payments/return, onde o site confirma o pagamento direto com o gateway.
 //
 // Para integrar um gateway novo: crie um arquivo nesta pasta implementando
-// PaymentProvider e registre-o em ./index.ts. Veja ./paypal.ts como modelo.
+// PaymentProvider e registre-o em ./index.ts. Veja ./mercadopago.ts como modelo.
 import type { CantinaSettings } from "../settings";
 
 export type ChargeInput = {
@@ -19,9 +17,7 @@ export type ChargeInput = {
   cancelUrl: string; // para onde o gateway manda o cliente se desistir
 };
 
-export type Charge =
-  | { kind: "pix"; providerRef: string; pixCopyPaste: string }
-  | { kind: "redirect"; providerRef: string; redirectUrl: string };
+export type Charge = { kind: "redirect"; providerRef: string; redirectUrl: string };
 
 export type PaymentResult = { paid: boolean; captureRef?: string };
 
@@ -46,6 +42,13 @@ export interface PaymentProvider {
    * e, se for o caso, efetivar a cobrança.
    */
   confirmReturn?(providerRef: string, params: URLSearchParams): Promise<PaymentResult>;
+
+  /**
+   * Consulta se o pedido já foi pago (usado enquanto o cliente está na tela do
+   * pedido e antes de cancelar por falta de pagamento). Útil para Pix, que é
+   * confirmado alguns segundos depois.
+   */
+  checkPayment?(providerRef: string, amountCents: number): Promise<PaymentResult>;
 
   /** Valida a notificação do gateway (assinatura) e diz se foi pago. */
   parseWebhook?(request: Request): Promise<WebhookResult>;

@@ -36,14 +36,12 @@ export function serializeOrder(o: OrderWithItems) {
     // Texto pronto, ex.: "Hoje às 12:15" ou "qua, 19/11 às 08:00".
     pickupLabel: pickupText(o.pickupDate, o.pickupSlot, localInfo().date),
     isToday: o.pickupDate === localInfo().date,
-    pixPayload: o.status === "AWAITING_PAYMENT" ? o.pixPayload : null,
     // Página de pagamento do gateway (PayPal etc.), enquanto não pago.
     checkoutUrl: o.status === "AWAITING_PAYMENT" ? o.checkoutUrl : null,
     paymentMethod: o.paymentProvider,
     cancelReason: o.cancelReason,
     refundStatus: o.refundStatus,
-    paymentClaimed: !!o.paymentClaimedAt,
-    paymentConfirmed: !!o.paidAt, // a cantina conferiu o Pix (ou o gateway confirmou)
+    paymentConfirmed: !!o.paidAt, // o gateway confirmou o pagamento
     // Prazo de pagamento já formatado no fuso da cantina.
     payUntil: o.expiresAt ? formatTime(o.expiresAt) : null,
     createdAt: o.createdAt.toISOString(),
@@ -159,12 +157,9 @@ export async function createOrder(userId: string, input: z.infer<typeof orderSch
     });
     await prisma.order.update({
       where: { id: orderId },
-      data:
-        charge.kind === "pix"
-          ? { paymentRef: charge.providerRef, pixPayload: charge.pixCopyPaste }
-          : { paymentRef: charge.providerRef, checkoutUrl: charge.redirectUrl },
+      data: { paymentRef: charge.providerRef, checkoutUrl: charge.redirectUrl },
     });
-    return { id: orderId, redirectUrl: charge.kind === "redirect" ? charge.redirectUrl : null };
+    return { id: orderId, redirectUrl: charge.redirectUrl };
   } catch (err) {
     await cancelOrder(orderId, "PAYMENT_ERROR");
     throw err;
@@ -205,27 +200,43 @@ export async function cancelOrder(orderId: number, reason: CancelReason, refund?
  */
 export async function expireStaleOrders() {
   const stale = await prisma.order.findMany({
-    where: { status: "AWAITING_PAYMENT", paymentClaimedAt: null, expiresAt: { lt: new Date() } },
-    select: { id: true },
+    where: { status: "AWAITING_PAYMENT", expiresAt: { lt: new Date() } },
+    select: { id: true, paymentProvider: true, paymentRef: true, totalCents: true },
   });
-  for (const { id } of stale) await cancelOrder(id, "EXPIRED");
+  for (const order of stale) {
+    // Antes de cancelar, confere no gateway: o Pix pode ter caído no último minuto.
+    const provider = providerById(order.paymentProvider);
+    if (provider?.checkPayment && order.paymentRef) {
+      const result = await provider.checkPayment(order.paymentRef, order.totalCents).catch(() => ({ paid: false }));
+      if (result.paid) {
+        await markOrderPaid(order.id, "captureRef" in result ? result.captureRef : undefined);
+        continue;
+      }
+    }
+    await cancelOrder(order.id, "EXPIRED");
+  }
 }
 
 /**
- * Cliente tocou em "Já paguei": o pedido entra na fila da cantina como
- * Recebido, com o selo "Conferir Pix" até a cantina confirmar.
+ * Enquanto o cliente olha a tela do pedido, confere no gateway se o pagamento
+ * já caiu (no máximo uma consulta a cada 5 s por pedido).
  */
-export async function claimPayment(orderId: number) {
-  const updated = await prisma.order.updateMany({
-    where: { id: orderId, status: "AWAITING_PAYMENT" },
-    data: { status: "RECEIVED", paymentClaimedAt: new Date() },
-  });
-  return updated.count > 0;
+const lastCheck = new Map<number, number>();
+export async function refreshPayment(order: { id: number; status: string; paymentProvider: string; paymentRef: string | null; totalCents: number }) {
+  if (order.status !== "AWAITING_PAYMENT" || !order.paymentRef) return false;
+  const provider = providerById(order.paymentProvider);
+  if (!provider?.checkPayment) return false;
+  const now = Date.now();
+  if ((lastCheck.get(order.id) ?? 0) > now - 5000) return false;
+  lastCheck.set(order.id, now);
+  const result = await provider.checkPayment(order.paymentRef, order.totalCents).catch(() => ({ paid: false as const }));
+  if (!result.paid) return false;
+  return markOrderPaid(order.id, result.captureRef);
 }
 
 /**
- * Pagamento confirmado: pela cantina (conferiu o Pix no app do banco) ou pelo
- * webhook do gateway. Funciona com o pedido aguardando ou já na fila.
+ * Pagamento confirmado pelo gateway (na volta do cliente, na consulta
+ * automática ou pelo webhook). Coloca o pedido na fila como "Recebido".
  */
 export async function markOrderPaid(orderId: number, captureRef?: string) {
   const now = new Date();
@@ -267,8 +278,7 @@ export async function advanceOrder(orderId: number, from: OrderStatus) {
  * A cantina recusa o pedido. Se ele foi pago por um gateway que permite
  * devolução (PayPal, pagamento de teste), o dinheiro é devolvido ao cliente
  * automaticamente ANTES de cancelar; se a devolução falhar, o pedido não é
- * cancelado e a cantina vê o motivo. Pago por Pix manual, o pedido é
- * cancelado e marcado para a cantina devolver pelo banco.
+ * cancelado e a cantina vê o motivo.
  */
 export async function refuseOrder(orderId: number) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
@@ -276,7 +286,6 @@ export async function refuseOrder(orderId: number) {
     throw new HttpError(409, "Esse pedido já foi finalizado.");
   }
   const provider = providerById(order.paymentProvider);
-  const paid = !!order.paidAt || !!order.paymentClaimedAt;
 
   let refund: { status: string; ref?: string } | undefined;
   if (order.paidAt && provider?.canRefund && provider.refund && order.paymentRef) {
@@ -287,7 +296,8 @@ export async function refuseOrder(orderId: number) {
       orderId,
     });
     refund = { status: "REFUNDED", ref: refundRef };
-  } else if (paid) {
+  } else if (order.paidAt) {
+    // Gateway sem devolução automática: a cantina devolve pelo painel do gateway.
     refund = { status: "MANUAL" };
   }
   await cancelOrder(orderId, "REFUSED", refund);

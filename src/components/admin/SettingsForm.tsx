@@ -14,9 +14,6 @@ type Values = {
   maxPerSlot: number;
   prepMinutes: number;
   paymentProvider: string;
-  pixKey: string;
-  pixMerchantName: string;
-  pixCity: string;
 };
 
 // Segunda primeiro, como o dono costuma pensar na semana.
@@ -202,37 +199,13 @@ export function SettingsForm({ initial, today, payments }: { initial: Values; to
             <span>
               <span className="block font-semibold">{o.label}</span>
               {o.unavailable && <span className="block text-stone-600">{o.unavailable}</span>}
-              {o.id === "paypal" && !o.unavailable && (
-                <span className="block text-stone-600">Confirma o pagamento sozinho e devolve o dinheiro quando você recusa um pedido.</span>
+              {o.id === "mercadopago" && (
+                <span className="block text-stone-600">O cliente escolhe Pix ou cartão na página do Mercado Pago. Confirma sozinho e devolve o dinheiro quando você recusa um pedido.</span>
               )}
             </span>
           </label>
         ))}
-        <p className="text-xs text-stone-500">As credenciais do PayPal ficam nas variáveis de ambiente (veja o README), nunca no painel.</p>
-      </fieldset>
-
-      <fieldset className="card space-y-4 p-4">
-        <legend className="px-1 font-display font-bold">Pix (quando a forma de pagamento for Pix)</legend>
-        <div>
-          <label className="label" htmlFor="pixKey">Chave Pix da cantina</label>
-          <input id="pixKey" className="input" maxLength={77} value={v.pixKey} onChange={(e) => set("pixKey", e.target.value)} />
-          <p className="mt-1 text-xs text-stone-500">
-            CPF/CNPJ (só números), e-mail, chave aleatória ou telefone no formato +5511912345678.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="pixMerchantName">Nome do recebedor</label>
-            <input id="pixMerchantName" className="input" required maxLength={25} value={v.pixMerchantName} onChange={(e) => set("pixMerchantName", e.target.value)} />
-          </div>
-          <div>
-            <label className="label" htmlFor="pixCity">Cidade</label>
-            <input id="pixCity" className="input" required maxLength={15} value={v.pixCity} onChange={(e) => set("pixCity", e.target.value)} />
-          </div>
-        </div>
-        <p className="text-xs text-stone-500">
-          Depois de salvar, faça um pedido de teste e leia o QR Code no app do seu banco para conferir o nome do recebedor.
-        </p>
+        <p className="text-xs text-stone-500">As credenciais (Mercado Pago, PayPal) ficam nas variáveis de ambiente da hospedagem (veja o README), nunca no painel.</p>
       </fieldset>
 
       {message && (

@@ -19,6 +19,7 @@ export async function getMenu() {
     .map((c) => ({
       id: c.id,
       name: c.name,
+      icon: c.icon,
       products: c.products.map((p) => ({
         id: p.id,
         name: p.name,

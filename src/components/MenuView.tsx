@@ -23,7 +23,7 @@ export function MenuView({ menu }: { menu: Menu }) {
         className="no-scrollbar sticky top-14 z-20 -mx-4 mb-1 flex gap-2 overflow-x-auto bg-stone-50/95 px-4 py-2.5 backdrop-blur"
       >
         {menu.map((c) => {
-          const kind = categoryKind(c.name);
+          const kind = categoryKind(c.name, c.icon);
           return (
             <a
               key={c.id}
@@ -47,7 +47,7 @@ export function MenuView({ menu }: { menu: Menu }) {
           </h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {category.products.map((p) => (
-              <ProductCard key={p.id} product={p} category={category.name} />
+              <ProductCard key={p.id} product={p} category={category.name} icon={category.icon} />
             ))}
           </ul>
         </section>
@@ -71,7 +71,7 @@ export function MenuView({ menu }: { menu: Menu }) {
   );
 }
 
-function ProductCard({ product: p, category }: { product: MenuProduct; category: string }) {
+function ProductCard({ product: p, category, icon }: { product: MenuProduct; category: string; icon: string }) {
   const cart = useCart();
   const quantity = cart.quantityOf(p.id);
 
@@ -81,7 +81,7 @@ function ProductCard({ product: p, category }: { product: MenuProduct; category:
         quantity > 0 ? "border-brand-200 ring-1 ring-brand-200" : ""
       } ${p.available ? "" : "opacity-60 saturate-50"}`}
     >
-      <ProductImage src={p.image} name={p.name} category={category} className="size-[84px] shrink-0 rounded-xl" />
+      <ProductImage src={p.image} name={p.name} category={category} icon={icon} className="size-[84px] shrink-0 rounded-xl" />
       <div className="flex min-w-0 flex-1 flex-col">
         <h3 className="font-sans text-[15px] leading-snug font-semibold tracking-normal">{p.name}</h3>
         {p.description && <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-stone-600">{p.description}</p>}

@@ -1,6 +1,6 @@
 "use client";
 
-// Tela do pedido: pagamento via Pix e acompanhamento do status em tempo real.
+// Tela do pedido: pagamento (Mercado Pago etc.) e acompanhamento do status em tempo real.
 // O "tempo real" é feito por polling: a cada 4 segundos consultamos o pedido.
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -46,8 +46,7 @@ export function OrderTracker({ initial }: { initial: OrderDTO }) {
       <p className="mt-1 text-sm text-stone-600">Retirada: <strong className="font-semibold text-stone-800">{order.pickupLabel}</strong></p>
 
       <div className="mt-5">
-        {order.status === "AWAITING_PAYMENT" &&
-          (order.checkoutUrl ? <OnlinePayment order={order} onChange={setOrder} /> : <PixPayment order={order} onChange={setOrder} />)}
+        {order.status === "AWAITING_PAYMENT" && <OnlinePayment order={order} onChange={setOrder} />}
         {order.status === "CANCELLED" && <Cancelled order={order} />}
         {TIMELINE.includes(order.status) && <Progress order={order} />}
       </div>
@@ -89,8 +88,8 @@ function Cancelled({ order }: { order: OrderDTO }) {
         </p>
       ) : order.refundStatus === "MANUAL" ? (
         <p className="mx-auto mt-2 max-w-xs rounded-xl bg-saffron-100 px-3 py-2.5 text-sm text-saffron-900">
-          A cantina vai devolver os <strong className="tabular-nums">{total}</strong> do seu Pix. Em caso de dúvida, procure
-          a cantina com o número do pedido.
+          A cantina vai devolver os <strong className="tabular-nums">{total}</strong>. Em caso de dúvida, procure a cantina
+          com o número do pedido.
         </p>
       ) : (
         <p className="mt-1 text-sm text-stone-600">
@@ -116,89 +115,21 @@ function OnlinePayment({ order, onChange }: { order: OrderDTO; onChange: (o: Ord
   }
   return (
     <div className="card p-5">
-      <h2 className="text-lg font-bold">Falta pagar</h2>
+      <h2 className="text-lg font-bold">Aguardando pagamento</h2>
       <p className="mt-1 text-sm text-stone-600">
         Valor: <strong className="text-stone-900 tabular-nums">{formatBRL(order.totalCents)}</strong>. O pedido vai para a
-        cantina assim que o pagamento for aprovado.
+        cantina assim que o pagamento for aprovado. Se você pagou com Pix, esta tela atualiza sozinha em alguns segundos.
       </p>
-      <a href={order.checkoutUrl!} className="btn-primary mt-4 w-full">Pagar agora</a>
+      <p className="mt-3 flex items-center gap-2 text-sm text-stone-500" role="status">
+        <span className="size-2 animate-pulse rounded-full bg-saffron-500" aria-hidden />
+        Conferindo o pagamento…
+      </p>
+      {order.checkoutUrl && <a href={order.checkoutUrl} className="btn-primary mt-4 w-full">Pagar agora</a>}
       <button type="button" className="btn mt-1 w-full text-stone-600 hover:bg-stone-100" onClick={cancel}>
         Cancelar pedido
       </button>
       {order.payUntil && (
         <p className="mt-2 text-center text-xs text-stone-500">Pague até {order.payUntil} ou o pedido será cancelado.</p>
-      )}
-      {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
-    </div>
-  );
-}
-
-/** Etapa de pagamento: QR Code Pix, copia e cola e botão "já paguei". */
-function PixPayment({ order, onChange }: { order: OrderDTO; onChange: (o: OrderDTO) => void }) {
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const payload = order.pixPayload ?? "";
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(payload);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      setError("Não foi possível copiar. Selecione o código e copie manualmente.");
-    }
-  }
-
-  async function act(path: "claim-paid" | "cancel") {
-    setError(null);
-    try {
-      await api(`/api/orders/${order.id}/${path}`, "POST", {});
-      const { order: fresh } = await api<{ order: OrderDTO }>(`/api/orders/${order.id}`);
-      onChange(fresh);
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
-
-  return (
-    <div className="card p-5">
-      <h2 className="text-lg font-bold">Pague com Pix</h2>
-      <p className="mt-1 text-sm text-stone-600">
-        Valor: <strong className="text-stone-900 tabular-nums">{formatBRL(order.totalCents)}</strong>. Abra o app do seu
-        banco, escolha Pix e leia o QR Code ou use o copia e cola. Depois de pagar, toque em <strong>Já paguei</strong> para
-        enviar o pedido à cantina.
-      </p>
-
-      <div className="mt-4 grid place-items-center">
-        <QrCode value={payload} label="QR Code Pix" />
-      </div>
-
-      <label className="label mt-4" htmlFor="pix-code">Pix copia e cola</label>
-      <div className="flex gap-2">
-        <input id="pix-code" readOnly value={payload} className="input min-w-0 flex-1 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
-        <button type="button" className="btn-secondary shrink-0" onClick={copy}>
-          {copied ? "Copiado" : "Copiar"}
-        </button>
-      </div>
-
-      {order.paymentClaimed ? (
-        <p className="mt-4 rounded-xl bg-brand-50 px-3 py-2.5 text-sm text-brand-800" role="status">
-          Recebemos seu aviso. A cantina está conferindo o pagamento e esta tela atualiza sozinha.
-        </p>
-      ) : (
-        <>
-          <button type="button" className="btn-primary mt-4 w-full" onClick={() => act("claim-paid")}>
-            Já paguei
-          </button>
-          <button type="button" className="btn mt-1 w-full text-stone-600 hover:bg-stone-100" onClick={() => act("cancel")}>
-            Cancelar pedido
-          </button>
-          {order.payUntil && (
-            <p className="mt-2 text-center text-xs text-stone-500">
-              Pague até {order.payUntil} ou o pedido será cancelado.
-            </p>
-          )}
-        </>
       )}
       {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
     </div>
