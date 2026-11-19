@@ -17,7 +17,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-1 px-4">
           <Link href="/" className="mr-auto flex min-w-0 items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={brand.logo} alt="" width={32} height={32} className="size-8 shrink-0 rounded-[10px] shadow-sm" />
+            <img src={brand.logo} alt="" width={32} height={32} className="size-9 shrink-0" />
             <span className="truncate font-display text-[17px] font-bold tracking-tight">{settings.cantinaName}</span>
           </Link>
           {session ? (

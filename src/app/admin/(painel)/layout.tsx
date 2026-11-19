@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { DEMO_PIX_KEY } from "@/lib/pix";
+import { getPaymentProvider } from "@/lib/payments";
 import { AdminNav } from "@/components/admin/AdminNav";
 
 // Layout do painel. O middleware já barra quem não é admin; aqui conferimos
@@ -13,7 +14,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (user?.role !== "ADMIN") redirect("/admin/login");
 
   const settings = await getSettings();
-  const pixWarning = !settings.pixKey
+  const usingPix = getPaymentProvider(settings).id === "static-pix";
+  const pixWarning = !usingPix
+    ? null
+    : !settings.pixKey
     ? "Nenhuma chave Pix cadastrada: os clientes não conseguem fazer pedidos."
     : settings.pixKey === DEMO_PIX_KEY
       ? "O site está usando uma chave Pix de demonstração. Cadastre a chave da cantina antes de receber pedidos reais."

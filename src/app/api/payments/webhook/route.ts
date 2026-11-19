@@ -1,15 +1,17 @@
 import { prisma } from "@/lib/db";
 import { handle, HttpError, ok } from "@/lib/api";
 import { markOrderPaid } from "@/lib/orders";
-import { getPaymentProvider } from "@/lib/payments";
+import { getPaymentProvider, providerById } from "@/lib/payments";
+import { getSettings } from "@/lib/settings";
 
-// Ponto de entrada para notificações do gateway de pagamento.
-// Com o provedor padrão (Pix estático) esta rota não é usada. Ao integrar um
-// gateway, implemente parseWebhook no provedor (validando a assinatura) e
-// cadastre a URL https://seu-site/api/payments/webhook no painel do gateway.
+// Notificações do gateway (opcional). O fluxo principal confirma o pagamento
+// quando o cliente volta da página do gateway (/api/payments/return); o
+// webhook cobre o caso de o cliente fechar o navegador antes de voltar.
+// Cadastre no gateway: https://seu-site/api/payments/webhook?provider=<id>
 export const POST = handle(async (req: Request) => {
-  const provider = getPaymentProvider();
-  if (!provider.parseWebhook) throw new HttpError(404, "Webhook não habilitado.");
+  const id = new URL(req.url).searchParams.get("provider");
+  const provider = (id && providerById(id)) || getPaymentProvider(await getSettings());
+  if (!provider.parseWebhook) throw new HttpError(404, "Webhook não habilitado para essa forma de pagamento.");
 
   const event = await provider.parseWebhook(req);
   if (!event) throw new HttpError(401, "Assinatura inválida.");
@@ -19,7 +21,7 @@ export const POST = handle(async (req: Request) => {
       where: { paymentRef: event.providerRef, paymentProvider: provider.id },
       select: { id: true },
     });
-    if (order) await markOrderPaid(order.id);
+    if (order) await markOrderPaid(order.id, event.captureRef);
   }
   return ok();
 });

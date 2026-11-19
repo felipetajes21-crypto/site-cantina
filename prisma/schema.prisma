@@ -67,6 +67,12 @@ model Order {
   paymentProvider  String      @default("static-pix")
   paymentRef       String? // identificador da cobrança no provedor
   pixPayload       String? // Pix copia e cola
+  checkoutUrl      String? // página de pagamento do gateway (PayPal etc.)
+  captureRef       String? // id da cobrança efetivada no gateway (usado na devolução)
+  refundStatus     String? // REFUNDED (devolvido pelo gateway) | MANUAL (devolver pelo banco)
+  refundRef        String? // id da devolução no gateway
+  refundedAt       DateTime?
+  cancelReason     String? // EXPIRED | CUSTOMER | REFUSED
   paymentClaimedAt DateTime? // cliente clicou em "já paguei"
   expiresAt        DateTime? // prazo para pagar
   paidAt           DateTime?
@@ -114,4 +120,7 @@ model Settings {
   pixKey          String  @default("")
   pixMerchantName String  @default("CANTINA")
   pixCity         String  @default("SAO PAULO")
+  // Forma de pagamento escolhida no painel: static-pix | teste | paypal.
+  // Vazio = usa a variável de ambiente PAYMENT_PROVIDER.
+  paymentProvider String  @default("")
 }

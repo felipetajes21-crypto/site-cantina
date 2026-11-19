@@ -41,21 +41,14 @@ export function OrderTracker({ initial }: { initial: OrderDTO }) {
     <div className="mx-auto max-w-md">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight tabular-nums">Pedido {orderNumber(order.id)}</h1>
-        <StatusBadge status={order.status} />
+        <StatusBadge status={order.status} refused={order.cancelReason === "REFUSED"} />
       </div>
       <p className="mt-1 text-sm text-stone-600">Retirada: <strong className="font-semibold text-stone-800">{order.pickupLabel}</strong></p>
 
       <div className="mt-5">
-        {order.status === "AWAITING_PAYMENT" && <PixPayment order={order} onChange={setOrder} />}
-        {order.status === "CANCELLED" && (
-          <div className="card p-5 text-center">
-            <p className="font-semibold">Este pedido foi cancelado</p>
-            <p className="mt-1 text-sm text-stone-600">
-              Se você já tinha pago, procure a cantina e informe o número do pedido.
-            </p>
-            <Link href="/" className="btn-primary mt-4">Fazer novo pedido</Link>
-          </div>
-        )}
+        {order.status === "AWAITING_PAYMENT" &&
+          (order.checkoutUrl ? <OnlinePayment order={order} onChange={setOrder} /> : <PixPayment order={order} onChange={setOrder} />)}
+        {order.status === "CANCELLED" && <Cancelled order={order} />}
         {TIMELINE.includes(order.status) && <Progress order={order} />}
       </div>
 
@@ -78,6 +71,64 @@ export function OrderTracker({ initial }: { initial: OrderDTO }) {
           <span className="tabular-nums">{formatBRL(order.totalCents)}</span>
         </div>
       </section>
+    </div>
+  );
+}
+
+/** Mensagem de pedido cancelado, conforme o motivo e a devolução do dinheiro. */
+function Cancelled({ order }: { order: OrderDTO }) {
+  const total = formatBRL(order.totalCents);
+  const refused = order.cancelReason === "REFUSED";
+  return (
+    <div className="card p-5 text-center">
+      <p className="font-display text-lg font-bold">{refused ? "A cantina não pôde aceitar este pedido" : "Este pedido foi cancelado"}</p>
+      {order.refundStatus === "REFUNDED" ? (
+        <p className="mx-auto mt-2 max-w-xs rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+          Os <strong className="tabular-nums">{total}</strong> foram devolvidos para a mesma forma de pagamento. Pode levar
+          alguns dias para aparecer no cartão ou na conta.
+        </p>
+      ) : order.refundStatus === "MANUAL" ? (
+        <p className="mx-auto mt-2 max-w-xs rounded-xl bg-saffron-100 px-3 py-2.5 text-sm text-saffron-900">
+          A cantina vai devolver os <strong className="tabular-nums">{total}</strong> do seu Pix. Em caso de dúvida, procure
+          a cantina com o número do pedido.
+        </p>
+      ) : (
+        <p className="mt-1 text-sm text-stone-600">
+          {order.cancelReason === "EXPIRED" ? "O pagamento não foi concluído a tempo." : "Nenhum valor foi cobrado."}
+        </p>
+      )}
+      <Link href="/" className="btn-primary mt-4">Fazer novo pedido</Link>
+    </div>
+  );
+}
+
+/** Pagamento online (PayPal etc.): leva o cliente para a página de pagamento. */
+function OnlinePayment({ order, onChange }: { order: OrderDTO; onChange: (o: OrderDTO) => void }) {
+  const [error, setError] = useState<string | null>(null);
+  async function cancel() {
+    try {
+      await api(`/api/orders/${order.id}/cancel`, "POST", {});
+      const { order: fresh } = await api<{ order: OrderDTO }>(`/api/orders/${order.id}`);
+      onChange(fresh);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+  return (
+    <div className="card p-5">
+      <h2 className="text-lg font-bold">Falta pagar</h2>
+      <p className="mt-1 text-sm text-stone-600">
+        Valor: <strong className="text-stone-900 tabular-nums">{formatBRL(order.totalCents)}</strong>. O pedido vai para a
+        cantina assim que o pagamento for aprovado.
+      </p>
+      <a href={order.checkoutUrl!} className="btn-primary mt-4 w-full">Pagar agora</a>
+      <button type="button" className="btn mt-1 w-full text-stone-600 hover:bg-stone-100" onClick={cancel}>
+        Cancelar pedido
+      </button>
+      {order.payUntil && (
+        <p className="mt-2 text-center text-xs text-stone-500">Pague até {order.payUntil} ou o pedido será cancelado.</p>
+      )}
+      {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
     </div>
   );
 }

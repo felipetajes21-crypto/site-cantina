@@ -90,6 +90,7 @@ export const settingsSchema = z.object({
   slotMinutes: z.number().int().min(5).max(60),
   maxPerSlot: z.number().int().min(1).max(500),
   prepMinutes: z.number().int().min(0).max(120),
+  paymentProvider: z.enum(["", "static-pix", "teste", "paypal"]),
   pixKey: z.string().trim().max(77),
   pixMerchantName: z.string().trim().min(1).max(25),
   pixCity: z.string().trim().min(1).max(15),

@@ -90,14 +90,15 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
     setError(null);
     setSending(true);
     try {
-      const { id } = await api<{ id: number }>("/api/orders", "POST", {
+      const { id, redirectUrl } = await api<{ id: number; redirectUrl: string | null }>("/api/orders", "POST", {
         items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity, note: i.note || undefined })),
         note: note || undefined,
         pickupDate,
         pickup,
       });
       cart.clear();
-      window.location.href = `/pedidos/${id}`;
+      // Pagamento online (PayPal etc.): vai para a página do gateway; Pix: tela do pedido.
+      window.location.href = redirectUrl ?? `/pedidos/${id}`;
     } catch (err) {
       setError((err as Error).message);
       setSending(false);
@@ -235,7 +236,7 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
         <span>Total</span>
         <span className="tabular-nums">{formatBRL(cart.totalCents)}</span>
       </div>
-      <p className="mt-0.5 text-sm text-stone-600">Pagamento via Pix na próxima etapa.</p>
+      <p className="mt-0.5 text-sm text-stone-600">O pagamento é feito na próxima etapa.</p>
 
       {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-800">{error}</p>}
 

@@ -10,6 +10,6 @@ export const POST = handle(async (_req: Request, { params }: Ctx) => {
   if (order.status !== "AWAITING_PAYMENT" || order.paymentClaimedAt) {
     throw new HttpError(409, "Esse pedido não pode mais ser cancelado por aqui. Fale com a cantina.");
   }
-  await cancelOrder(order.id);
+  await cancelOrder(order.id, "CUSTOMER");
   return ok();
 });

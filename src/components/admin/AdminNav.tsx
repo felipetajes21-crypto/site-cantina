@@ -19,7 +19,7 @@ export function AdminNav({ cantinaName }: { cantinaName: string }) {
     <header className="sticky top-0 z-30 border-b border-saffron-500/60 bg-saffron-400 text-stone-900">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-2.5 px-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brand.logo} alt="" width={28} height={28} className="rounded-lg shadow-sm" />
+        <img src={brand.logo} alt="" width={28} height={28} className="size-8" />
         <span className="mr-auto truncate font-display font-bold">{cantinaName} <span className="font-sans font-medium text-stone-700">· Painel</span></span>
         <Link href="/" className="rounded-lg px-2 py-1.5 text-sm font-medium text-stone-800 hover:bg-black/5">Ver site</Link>
         <LogoutButton redirectTo="/admin/login" className="cursor-pointer rounded-lg px-2 py-1.5 text-sm font-medium text-stone-800 hover:bg-black/5" />

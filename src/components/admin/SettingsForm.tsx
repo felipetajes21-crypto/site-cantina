@@ -13,6 +13,7 @@ type Values = {
   slotMinutes: number;
   maxPerSlot: number;
   prepMinutes: number;
+  paymentProvider: string;
   pixKey: string;
   pixMerchantName: string;
   pixCity: string;
@@ -24,7 +25,9 @@ const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const formatDate = (d: string) =>
   `${WEEKDAY_NAMES[weekdayOf(d)].slice(0, 3).toLowerCase()}, ${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 
-export function SettingsForm({ initial, today }: { initial: Values; today: string }) {
+type PaymentOptions = { options: { id: string; label: string; unavailable: string | null }[]; active: string };
+
+export function SettingsForm({ initial, today, payments }: { initial: Values; today: string; payments: PaymentOptions }) {
   const [v, setV] = useState(initial);
   const [newDate, setNewDate] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -178,8 +181,38 @@ export function SettingsForm({ initial, today }: { initial: Values; today: strin
         )}
       </fieldset>
 
+      <fieldset className="card space-y-3 p-4">
+        <legend className="px-1 font-display font-bold">Forma de pagamento</legend>
+        {payments.options.map((o) => (
+          <label
+            key={o.id}
+            className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${
+              v.paymentProvider === o.id ? "border-brand-700 bg-brand-50" : "border-stone-300 bg-white"
+            } ${o.unavailable ? "opacity-60" : "cursor-pointer"}`}
+          >
+            <input
+              type="radio"
+              name="paymentProvider"
+              className="mt-0.5 size-4"
+              value={o.id}
+              checked={v.paymentProvider === o.id}
+              disabled={!!o.unavailable}
+              onChange={() => set("paymentProvider", o.id)}
+            />
+            <span>
+              <span className="block font-semibold">{o.label}</span>
+              {o.unavailable && <span className="block text-stone-600">{o.unavailable}</span>}
+              {o.id === "paypal" && !o.unavailable && (
+                <span className="block text-stone-600">Confirma o pagamento sozinho e devolve o dinheiro quando você recusa um pedido.</span>
+              )}
+            </span>
+          </label>
+        ))}
+        <p className="text-xs text-stone-500">As credenciais do PayPal ficam nas variáveis de ambiente (veja o README), nunca no painel.</p>
+      </fieldset>
+
       <fieldset className="card space-y-4 p-4">
-        <legend className="px-1 font-display font-bold">Pix</legend>
+        <legend className="px-1 font-display font-bold">Pix (quando a forma de pagamento for Pix)</legend>
         <div>
           <label className="label" htmlFor="pixKey">Chave Pix da cantina</label>
           <input id="pixKey" className="input" maxLength={77} value={v.pixKey} onChange={(e) => set("pixKey", e.target.value)} />

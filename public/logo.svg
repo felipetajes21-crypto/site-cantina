@@ -1,6 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
-  <rect width="40" height="40" rx="10" fill="#bb4100"/>
-  <path d="M12 17h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6v-5z" fill="#fff"/>
-  <path d="M25 18.5h1.5a2.75 2.75 0 0 1 0 5.5H25" stroke="#fff" stroke-width="2"/>
-  <path d="M16 13c0-1.5 1.5-1.5 1.5-3M20.5 13c0-1.5 1.5-1.5 1.5-3" stroke="#ffc82f" stroke-width="1.6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Fundo laranja com leve degradê -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e2620c"/>
+      <stop offset="1" stop-color="#b53d00"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="13" fill="url(#bg)"/>
+  <!-- Alça da sacola -->
+  <path d="M18.5 17.5v-2.2a5.5 5.5 0 0 1 11 0v2.2" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+  <!-- Sacola de retirada -->
+  <path d="M12.6 18.6a1.6 1.6 0 0 1 1.6-1.5h19.6a1.6 1.6 0 0 1 1.6 1.5l1.2 18.2a2.8 2.8 0 0 1-2.8 3H14.2a2.8 2.8 0 0 1-2.8-3Z" fill="#fff"/>
+  <!-- Relógio amarelo: retire no horário escolhido -->
+  <circle cx="24" cy="28.6" r="6.6" fill="#ffc82f"/>
+  <path d="M24 25.2v3.6l2.6 1.6" stroke="#9c3200" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

@@ -58,16 +58,35 @@ Num computador em que você não pode instalar programas, abra o repositório no
 
 ## Antes de usar de verdade
 
-1. **Chave Pix**: o seed cadastra uma chave de demonstração que não existe em nenhum banco. Em **Painel → Configurações → Pix**, informe a chave, o nome do recebedor e a cidade da cantina. Faça um pedido de teste e leia o QR Code no app do banco para conferir o recebedor.
+1. **Forma de pagamento**: ligue o PayPal (veja abaixo) ou, se for usar Pix, troque a chave Pix de demonstração pela da cantina em **Painel → Configurações**.
 2. **Senha do admin**: troque `ADMIN_PASSWORD` antes do primeiro deploy (ou use `npm run admin:create`).
 3. **AUTH_SECRET**: gere um valor novo (`openssl rand -base64 32`). O site se recusa a rodar em produção com o valor de exemplo.
 4. **Horário de funcionamento e limite por intervalo**: ajuste em Configurações.
 
-### Como o pagamento funciona nesta versão
+### Formas de pagamento
 
-O site gera um Pix (QR Code e copia e cola) com a chave da cantina, o valor exato e o identificador `PEDIDO<número>`. Como é um Pix direto para a conta da cantina, **não há confirmação automática**: o cliente clica em "Já paguei", o pedido é destacado no painel e a cantina confere no app do banco antes de clicar em **Confirmar pagamento**. Pedidos não pagos são cancelados sozinhos após 20 minutos (e o estoque volta).
+Escolha em **Painel → Configurações → Forma de pagamento**:
 
-Para confirmação automática, integre um gateway (veja "Integrar um gateway de pagamento").
+| Forma | Como funciona | Devolução quando a cantina recusa |
+| --- | --- | --- |
+| **PayPal** | O cliente paga na página do PayPal (cartão ou conta PayPal) e volta para o site. O site confirma direto com o PayPal e o pedido entra sozinho na fila. | Automática: o site pede a devolução total ao PayPal. |
+| **Pagamento de teste** | Igual ao PayPal, mas com uma página de teste do próprio site. Serve para experimentar sem conta e sem dinheiro. Desligado em produção. | Automática (simulada). |
+| **Pix com a chave da cantina** | QR Code e copia e cola. O cliente toca em "Já paguei" e a cantina confere no banco ("Conferir Pix"). | Manual: o site avisa a cantina para devolver pelo app do banco. |
+
+Pedidos não pagos são cancelados sozinhos em 20 minutos (e o estoque volta). Para **recusar** um pedido, use o botão **X** no cartão do pedido no painel.
+
+#### Ligar o PayPal
+
+1. Crie uma conta em [developer.paypal.com](https://developer.paypal.com) e, em **Apps & Credentials**, crie um app. Copie o **Client ID** e o **Secret**.
+2. Defina as variáveis `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` e `PAYPAL_ENV` (`sandbox` para testar com contas de teste do PayPal, `live` para cobrar de verdade). Na Vercel: **Settings → Environment Variables**.
+3. Publique de novo e escolha **PayPal** no painel.
+4. Faça um pedido de teste no modo `sandbox`, pague com uma conta de teste do PayPal e recuse o pedido no painel para conferir a devolução.
+
+A integração segue a documentação oficial da API do PayPal (Orders v2: criar, capturar e devolver), mas ainda não foi testada com uma conta real; por isso o passo 4 é importante. O código fica em `src/lib/payments/paypal.ts`.
+
+#### Outro gateway (Mercado Pago, Stripe, PagSeguro…)
+
+Crie um arquivo em `src/lib/payments/` implementando `PaymentProvider` (`createCharge`, `confirmReturn`, `refund`), usando `paypal.ts` como modelo, e registre-o em `src/lib/payments/index.ts`. O resto do site (carrinho, painel, devolução) já funciona com ele.
 
 ## Variáveis de ambiente
 
@@ -77,7 +96,11 @@ Para confirmação automática, integre um gateway (veja "Integrar um gateway de
 | `AUTH_SECRET` | sim | Segredo que assina as sessões (mínimo 32 caracteres) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | não | Admin criado pelo seed, se ainda não existir |
 | `APP_TIMEZONE` | não | Fuso horário (padrão `America/Sao_Paulo`) |
-| `PAYMENT_PROVIDER` | não | Provedor de pagamento (padrão `static-pix`) |
+| `PAYMENT_PROVIDER` | não | Forma de pagamento padrão: `static-pix`, `teste` ou `paypal` (pode ser trocada no painel) |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | para o PayPal | Credenciais do app no developer.paypal.com |
+| `PAYPAL_ENV` | para o PayPal | `sandbox` (testes) ou `live` (cobrança real) |
+| `APP_URL` | não | Endereço público do site, usado no retorno do PayPal |
+| `ALLOW_TEST_PAYMENTS` | não | `true` libera o pagamento de teste em produção (só para testes) |
 | `SEED_SAMPLE_DATA` | não | `false` para não criar os produtos de exemplo |
 | `DIRECT_URL` ou `DATABASE_URL_UNPOOLED` | não | Conexão direta ao Postgres (sem pooler), usada na criação das tabelas |
 
@@ -173,13 +196,11 @@ O painel mostra só **Recebido** e **Pronto para retirada**. O pedido entra em R
 
 ## Integrar um gateway de pagamento
 
-1. Crie `src/lib/payments/<gateway>.ts` implementando `PaymentProvider` (`createCharge` devolve o copia e cola e o id da cobrança; `parseWebhook` valida a assinatura e diz se foi pago).
-2. Registre o provedor em `src/lib/payments/index.ts` e defina `PAYMENT_PROVIDER`.
-3. Cadastre `https://seu-site/api/payments/webhook` no gateway. Quando o Pix cair, o pedido passa sozinho para "Recebido".
+Veja **Formas de pagamento → Outro gateway**, acima. A notificação automática do gateway (webhook) é opcional: cadastre `https://seu-site/api/payments/webhook?provider=<id>` e implemente `parseWebhook` validando a assinatura.
 
 ## Melhorias futuras
 
-- Confirmação automática do Pix via gateway (Mercado Pago, Asaas, Efí).
+- Outros gateways além do PayPal (Mercado Pago, Asaas, Efí) e devolução parcial.
 - Notificação por WhatsApp ou push quando o pedido ficar pronto.
 - Recuperação de senha por e-mail/SMS e verificação do telefone.
 - Cupons de desconto e programa de fidelidade (ex.: 10º café grátis).

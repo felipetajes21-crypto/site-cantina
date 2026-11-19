@@ -14,7 +14,7 @@ export default async function AdminLoginPage() {
   return (
     <main className="mx-auto max-w-sm px-4 pt-16">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={brand.logo} alt="" width={44} height={44} className="mb-4" />
+      <img src={brand.logo} alt="" width={56} height={56} className="mb-4" />
       <h1 className="text-2xl font-bold tracking-tight">Painel da cantina</h1>
       <p className="mt-1 mb-5 text-sm text-stone-600">{cantinaName} · acesso restrito à equipe.</p>
       <AuthForm mode="admin" next="/admin" />

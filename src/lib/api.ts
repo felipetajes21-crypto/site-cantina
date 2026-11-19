@@ -37,3 +37,14 @@ export function handle<Args extends unknown[]>(fn: (...args: Args) => Promise<Re
     }
   };
 }
+
+/**
+ * Endereço público do site (ex.: https://cantina.vercel.app). Usa APP_URL se
+ * definido; senão, o host da requisição (funciona atrás de proxy: Vercel, Codespaces).
+ */
+export function baseUrl(req: Request) {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
+  const host = req.headers.get("x-forwarded-host")?.split(",")[0].trim() || req.headers.get("host") || "localhost:3000";
+  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0].trim() || (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}

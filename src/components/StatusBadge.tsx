@@ -11,10 +11,10 @@ const STYLE: Record<OrderStatus, string> = {
   CANCELLED: "bg-red-100 text-red-800",
 };
 
-export function StatusBadge({ status }: { status: OrderStatus }) {
+export function StatusBadge({ status, refused }: { status: OrderStatus; refused?: boolean }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${STYLE[status]}`}>
-      {STATUS_LABEL[status]}
+      {refused && status === "CANCELLED" ? "Recusado" : STATUS_LABEL[status]}
     </span>
   );
 }

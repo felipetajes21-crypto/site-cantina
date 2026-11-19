@@ -1,11 +1,14 @@
 import { prisma } from "@/lib/db";
-import { handle, ok } from "@/lib/api";
+import { handle, HttpError, ok } from "@/lib/api";
+import { PROVIDERS } from "@/lib/payments";
 import { requireAdmin } from "@/lib/auth";
 import { settingsSchema } from "@/lib/validation";
 
 export const PUT = handle(async (req: Request) => {
   await requireAdmin();
   const { schedule, closedDates, ...data } = settingsSchema.parse(await req.json());
+  const chosen = PROVIDERS[data.paymentProvider];
+  if (chosen?.unavailableReason()) throw new HttpError(400, `${chosen.label}: ${chosen.unavailableReason()}`);
   const values = {
     ...data,
     schedule: JSON.stringify(schedule),

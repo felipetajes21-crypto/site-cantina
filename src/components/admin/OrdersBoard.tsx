@@ -35,6 +35,7 @@ export function OrdersBoard() {
   const [tab, setTab] = useState<OrderStatus | "DONE">("RECEIVED");
   const [sound, setSound] = useState(false);
   const [busy, setBusy] = useState<number | null>(null);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const audio = useRef<AudioContext | null>(null);
   const soundRef = useRef(false);
   // Chaves já vistas: "id" (pedido pago na fila) e "id:pago" (cliente informou pagamento).
@@ -80,12 +81,35 @@ export function OrdersBoard() {
   }
 
   async function act(order: OrderDTO, action: "confirm_payment" | "advance" | "cancel") {
-    if (action === "cancel" && !confirm(`Cancelar o pedido ${orderNumber(order.id)}?`)) return;
+    if (
+      action === "cancel" &&
+      !confirm(
+        `Recusar o pedido ${orderNumber(order.id)}?\n\n` +
+          (order.paymentConfirmed && order.paymentMethod !== "static-pix"
+            ? `O valor de ${formatBRL(order.totalCents)} será devolvido automaticamente ao cliente.`
+            : order.paymentMethod === "static-pix"
+              ? "Se o cliente já fez o Pix, você precisa devolver pelo app do banco."
+              : "O cliente será avisado."),
+      )
+    )
+      return;
     setBusy(order.id);
+    setNotice(null);
     try {
-      await api(`/api/admin/orders/${order.id}`, "PATCH", { action });
+      const res = await api<{ refund?: string | null }>(`/api/admin/orders/${order.id}`, "PATCH", { action });
+      if (action === "cancel") {
+        setNotice({
+          ok: true,
+          text:
+            res.refund === "REFUNDED"
+              ? `Pedido ${orderNumber(order.id)} recusado. ${formatBRL(order.totalCents)} devolvidos ao cliente.`
+              : res.refund === "MANUAL"
+                ? `Pedido ${orderNumber(order.id)} recusado. Devolva ${formatBRL(order.totalCents)} do Pix pelo app do banco.`
+                : `Pedido ${orderNumber(order.id)} recusado.`,
+        });
+      }
     } catch (err) {
-      alert((err as Error).message);
+      setNotice({ ok: false, text: (err as Error).message });
     }
     await load();
     setBusy(null);
@@ -105,6 +129,12 @@ export function OrdersBoard() {
         </button>
       </div>
       {error && <p role="alert" className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">Sem conexão: {error}</p>}
+      {notice && (
+        <p role="status" className={`mb-3 flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 text-sm ${notice.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}>
+          <span>{notice.text}</span>
+          <button type="button" className="shrink-0 cursor-pointer font-semibold underline" onClick={() => setNotice(null)}>Fechar</button>
+        </p>
+      )}
 
       {/* Celular: abas por status */}
       <div role="tablist" className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:hidden">
@@ -194,7 +224,7 @@ function OrderCard({
   onAct: (order: OrderDTO, action: "confirm_payment" | "advance" | "cancel") => void;
 }) {
   // Pix ainda não conferido pela cantina (o cliente tocou em "Já paguei").
-  const checkPix = !o.paymentConfirmed;
+  const checkPix = !o.paymentConfirmed && o.paymentMethod === "static-pix";
   // Cada pedido é uma comanda: cabeçalho com número e horário, picote, itens.
   return (
     <article
@@ -254,8 +284,8 @@ function OrderCard({
           className="btn-danger btn-sm w-9 px-0"
           disabled={busy}
           onClick={() => onAct(o, "cancel")}
-          aria-label={`Cancelar pedido ${orderNumber(o.id)}`}
-          title="Cancelar pedido"
+          aria-label={`Recusar pedido ${orderNumber(o.id)}`}
+          title="Recusar pedido"
         >
           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
             <path d="M6 6l12 12M18 6 6 18" />

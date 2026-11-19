@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { handle, HttpError, ok } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth";
-import { advanceOrder, cancelOrder, markOrderPaid } from "@/lib/orders";
+import { advanceOrder, markOrderPaid, refuseOrder } from "@/lib/orders";
 import type { OrderStatus } from "@/lib/status";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -23,7 +23,9 @@ export const PATCH = handle(async (req: Request, { params }: Ctx) => {
   } else if (action === "advance") {
     await advanceOrder(id, order.status as OrderStatus);
   } else {
-    if (!(await cancelOrder(id))) throw new HttpError(409, "Esse pedido já foi finalizado.");
+    // Recusar: devolve o dinheiro automaticamente quando a forma de pagamento permite.
+    const refund = await refuseOrder(id);
+    return ok({ ok: true, refund });
   }
   return ok();
 });
