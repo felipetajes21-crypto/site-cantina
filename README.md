@@ -52,6 +52,10 @@ O seed deixa a cantina aberta todos os dias, das 06:00 às 23:00, para facilitar
 
 Pedidos pagos para outro dia aparecem em **Pedidos → Agendados para os próximos dias** e entram na fila da cozinha no dia da retirada.
 
+### Sem instalar nada: GitHub Codespaces
+
+Num computador em que você não pode instalar programas, abra o repositório no GitHub, troque para a branch do site e clique em **Code → Codespaces → Create codespace**. A pasta `.devcontainer/` já instala tudo e cria o banco. Quando o terminal terminar, rode `npm run dev` e abra a porta 3000 que o Codespaces oferecer. O endereço é privado (só abre logado na sua conta). Ao terminar, pare o codespace em github.com/codespaces para não gastar as horas gratuitas.
+
 ## Antes de usar de verdade
 
 1. **Chave Pix**: o seed cadastra uma chave de demonstração que não existe em nenhum banco. Em **Painel → Configurações → Pix**, informe a chave, o nome do recebedor e a cidade da cantina. Faça um pedido de teste e leia o QR Code no app do banco para conferir o recebedor.

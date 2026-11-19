@@ -15,10 +15,12 @@ export async function middleware(req: NextRequest) {
 
   if (isApi && !SAFE_METHODS.includes(req.method)) {
     const origin = req.headers.get("origin");
-    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+    // Aceita o host público (atrás de proxy: Vercel, Codespaces) ou o host direto.
+    const hosts = [req.headers.get("x-forwarded-host"), req.headers.get("host")]
+      .flatMap((h) => (h ? h.split(",").map((v) => v.trim()) : []));
     let sameOrigin = false;
     try {
-      sameOrigin = !!origin && new URL(origin).host === host;
+      sameOrigin = !!origin && hosts.includes(new URL(origin).host);
     } catch {}
     if (!sameOrigin) {
       return NextResponse.json({ error: "Origem não permitida." }, { status: 403 });
