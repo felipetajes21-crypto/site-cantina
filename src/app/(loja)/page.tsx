@@ -11,7 +11,7 @@ export default async function MenuPage() {
   const today = availability.days.find((d) => d.date === availability.today);
   const orderingToday = !!today;
   const nextDay = availability.days[0];
-  const nextTime = nextDay?.asap ? null : nextDay?.slots.find((s) => !s.full)?.time;
+  const nextTime = nextDay?.asap ? null : nextDay?.earliest;
 
   return (
     <>

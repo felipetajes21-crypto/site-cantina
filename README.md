@@ -32,9 +32,9 @@ Abra http://localhost:3000. O `npm run setup` cria o banco SQLite, o usuário ad
 ### Roteiro de teste (5 minutos)
 
 1. Abra o painel em uma aba (`/admin`), faça login e clique em **Ativar som de novo pedido**.
-2. Em outra aba (ou no celular), crie uma conta de cliente, adicione itens, escreva uma observação, escolha o horário de retirada e clique em **Fazer pedido e pagar**.
-3. Na tela do Pix, clique em **Já paguei**. No painel o pedido fica destacado e toca o alerta.
-4. No painel: **Confirmar pagamento → Iniciar preparo → Marcar como pronto**. A tela do cliente acompanha sozinha.
+2. Em outra aba (ou no celular), crie uma conta de cliente, adicione itens, escreva uma observação, escolha o dia e digite o horário de retirada (ou "o mais rápido possível") e clique em **Fazer pedido e pagar**.
+3. Na tela do Pix, clique em **Já paguei**. O pedido entra na fila da cantina e toca o alerta.
+4. No painel o pedido aparece em **Recebido** com o selo **Conferir Pix**. Clique em **Pix conferido** e depois em **Marcar como pronto**. A tela do cliente acompanha sozinha.
 5. Em **Retirada**, digite o número do pedido (ou leia o QR Code do cliente com a câmera) e confirme.
 6. Em **Meus pedidos**, teste o **Repetir pedido**. Em **Relatórios**, veja a venda registrada.
 
@@ -48,7 +48,7 @@ O seed deixa a cantina aberta todos os dias, das 06:00 às 23:00, para facilitar
 - **Horário de funcionamento por dia da semana**: cada dia aberto ou fechado, com horário próprio (ex.: sexta até 15:00).
 - **Agendamento**: até quantos dias à frente o cliente pode escolher a retirada (só hoje, hoje e amanhã, até 14 dias).
 - **Datas fechadas**: feriados e recessos, que somem das opções do cliente.
-- **Retirada**: tamanho do intervalo, limite de pedidos por intervalo e tempo mínimo de preparo.
+- **Retirada**: o cliente digita o horário que quiser dentro do funcionamento do dia. A cantina define o tempo mínimo de preparo e, se quiser, um limite de pedidos por janela de tempo (ex.: no máximo 8 a cada 15 minutos).
 
 Pedidos pagos para outro dia aparecem em **Pedidos → Agendados para os próximos dias** e entram na fila da cozinha no dia da retirada.
 
@@ -151,7 +151,9 @@ src/
 
 ### Fluxo do pedido
 
-`Aguardando pagamento → Recebido → Em preparo → Pronto para retirada → Retirado` (ou `Cancelado`).
+`Aguardando pagamento → Recebido → Pronto para retirada → Retirado` (ou `Cancelado`).
+
+O painel mostra só **Recebido** e **Pronto para retirada**. O pedido entra em Recebido quando o cliente toca em "Já paguei"; até a cantina clicar em **Pix conferido**, o cartão mostra o selo **Conferir Pix**. Entregar o pedido no balcão também marca o pagamento como conferido. Pedidos sem "Já paguei" não aparecem e são cancelados sozinhos em 20 minutos.
 
 ### Segurança
 

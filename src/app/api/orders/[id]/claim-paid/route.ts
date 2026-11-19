@@ -1,15 +1,13 @@
-import { prisma } from "@/lib/db";
 import { handle, ok } from "@/lib/api";
 import { loadOwnOrder } from "@/lib/order-access";
+import { claimPayment } from "@/lib/orders";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-// Cliente informa que já fez o Pix: destaca o pedido no painel para conferência.
+// Cliente informa que já fez o Pix: o pedido entra na fila da cantina como
+// "Recebido", com o selo "Conferir Pix" para a cantina checar no banco.
 export const POST = handle(async (_req: Request, { params }: Ctx) => {
   const order = await loadOwnOrder((await params).id);
-  await prisma.order.updateMany({
-    where: { id: order.id, status: "AWAITING_PAYMENT", paymentClaimedAt: null },
-    data: { paymentClaimedAt: new Date() },
-  });
+  await claimPayment(order.id);
   return ok();
 });

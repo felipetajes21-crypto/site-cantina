@@ -9,18 +9,14 @@ import type { Availability, PickupDay } from "@/lib/slots";
 import { useCart } from "./cart";
 import { Stepper } from "./Stepper";
 
-const PERIODS = [
-  { label: "Manhã", test: (h: number) => h < 12 },
-  { label: "Tarde", test: (h: number) => h >= 12 && h < 18 },
-  { label: "Noite", test: (h: number) => h >= 18 },
-];
 
 export function CartView({ loggedIn }: { loggedIn: boolean }) {
   const cart = useCart();
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [limits, setLimits] = useState<Record<string, { available: boolean; max: number }>>({});
   const [pickupDate, setPickupDate] = useState<string | null>(null);
-  const [pickup, setPickup] = useState<string | null>(null);
+  const [pickup, setPickup] = useState<string | null>(null); // "ASAP" ou "HH:MM"
+  const [time, setTime] = useState(""); // horário digitado pelo cliente
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -48,10 +44,11 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.ready]);
 
-  /** Ao trocar de dia, já seleciona o primeiro horário livre dele. */
+  /** Ao trocar de dia: hoje com a cantina aberta sugere "o mais rápido possível"; nos outros dias, o primeiro horário. */
   function selectDay(day: PickupDay) {
     setPickupDate(day.date);
-    setPickup(day.asap ? "ASAP" : (day.slots.find((s) => !s.full)?.time ?? null));
+    setTime(day.earliest);
+    setPickup(day.asap ? "ASAP" : day.earliest);
   }
 
   if (!cart.ready) return null;
@@ -71,9 +68,15 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
   const blocked = unavailable.length > 0 || missing.length > 0;
 
   const selectedDay = availability?.days.find((d) => d.date === pickupDate);
+  // Validação no navegador do horário digitado (o servidor confere de novo).
+  const timeError =
+    selectedDay && pickup && pickup !== "ASAP" && (pickup < selectedDay.earliest || pickup > selectedDay.latest)
+      ? `Escolha um horário entre ${selectedDay.earliest} e ${selectedDay.latest}.`
+      : null;
 
   async function submit() {
     if (!pickupDate || !pickup) return setError("Escolha o dia e o horário de retirada.");
+    if (timeError) return setError(timeError);
     setError(null);
     setSending(true);
     try {
@@ -163,28 +166,38 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
             </div>
 
             <p className="mt-4 mb-1.5 text-sm font-medium text-stone-700">Horário</p>
-            <div role="radiogroup" aria-label="Horário de retirada" className="space-y-3">
-              {selectedDay?.asap && (
-                <SlotChip label="O mais rápido possível" selected={pickup === "ASAP"} onSelect={() => setPickup("ASAP")} />
-              )}
-              {/* Horários agrupados por período para a lista não ficar longa demais. */}
-              {PERIODS.map(({ label, test }) => {
-                const slots = selectedDay?.slots.filter((s) => test(Number(s.time.slice(0, 2)))) ?? [];
-                if (slots.length === 0) return null;
-                return (
-                  <div key={label}>
-                    <p className="mb-1.5 text-xs font-semibold tracking-wide text-stone-500 uppercase">{label}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {slots.map((s) => (
-                        <SlotChip key={s.time} label={s.time} disabled={s.full} selected={pickup === s.time} onSelect={() => setPickup(s.time)} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {selectedDay?.slots.some((s) => s.full) && (
-              <p className="mt-2 text-xs text-stone-500">Horários riscados já estão lotados.</p>
+            {selectedDay && (
+              <div role="radiogroup" aria-label="Horário de retirada" className="space-y-2">
+                {selectedDay.asap && (
+                  <TimeOption
+                    selected={pickup === "ASAP"}
+                    onSelect={() => setPickup("ASAP")}
+                    title="O mais rápido possível"
+                    hint="A cantina prepara assim que o pedido chegar."
+                  />
+                )}
+                <TimeOption
+                  selected={pickup !== "ASAP"}
+                  onSelect={() => setPickup(time || selectedDay.earliest)}
+                  title="Escolher horário"
+                  hint={`Qualquer horário entre ${selectedDay.earliest} e ${selectedDay.latest}.`}
+                >
+                  <input
+                    type="time"
+                    aria-label="Horário da retirada"
+                    className="input mt-2 w-40 text-lg font-semibold tabular-nums"
+                    min={selectedDay.earliest}
+                    max={selectedDay.latest}
+                    value={time}
+                    onFocus={() => setPickup(time || selectedDay.earliest)}
+                    onChange={(e) => {
+                      setTime(e.target.value);
+                      setPickup(e.target.value || null);
+                    }}
+                  />
+                </TimeOption>
+                {timeError && <p className="text-sm font-medium text-red-700" role="alert">{timeError}</p>}
+              </div>
             )}
           </>
         )}
@@ -204,7 +217,7 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
       {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-800">{error}</p>}
 
       {loggedIn ? (
-        <button type="button" className="btn-primary mt-4 w-full" disabled={sending || blocked || !availability?.open || !pickup} onClick={submit}>
+        <button type="button" className="btn-primary mt-4 w-full" disabled={sending || blocked || !availability?.open || !pickup || !!timeError} onClick={submit}>
           {sending ? "Enviando…" : "Fazer pedido e pagar"}
         </button>
       ) : (
@@ -215,19 +228,37 @@ export function CartView({ loggedIn }: { loggedIn: boolean }) {
   );
 }
 
-function SlotChip({ label, selected, disabled, onSelect }: { label: string; selected: boolean; disabled?: boolean; onSelect: () => void }) {
+/** Opção de horário em forma de cartão selecionável. */
+function TimeOption({
+  selected,
+  onSelect,
+  title,
+  hint,
+  children,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  title: string;
+  hint: string;
+  children?: React.ReactNode;
+}) {
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      disabled={disabled}
-      onClick={onSelect}
-      className={`min-h-10 cursor-pointer rounded-xl border px-3.5 text-sm font-medium tabular-nums transition-colors disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-100 disabled:text-stone-400 disabled:line-through ${
-        selected ? "border-brand-700 bg-brand-700 text-white" : "border-stone-300 bg-white text-stone-800 hover:border-brand-700"
-      }`}
+    <div
+      className={`rounded-xl border p-3 transition-colors ${selected ? "border-brand-700 bg-brand-50" : "border-stone-300 bg-white"}`}
     >
-      {label}
-    </button>
+      <button type="button" role="radio" aria-checked={selected} onClick={onSelect} className="flex w-full cursor-pointer items-start gap-3 text-left">
+        <span
+          aria-hidden
+          className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border-2 ${selected ? "border-brand-700" : "border-stone-400"}`}
+        >
+          {selected && <span className="size-2.5 rounded-full bg-brand-700" />}
+        </span>
+        <span>
+          <span className="block font-semibold">{title}</span>
+          <span className="block text-sm text-stone-600">{hint}</span>
+        </span>
+      </button>
+      {children && <div className="pl-8">{children}</div>}
+    </div>
   );
 }

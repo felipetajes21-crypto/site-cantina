@@ -7,7 +7,7 @@ export const metadata = { title: "Relatórios · Painel" };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Relatórios simples: vendas de hoje e dos últimos 7 dias, produtos mais
-// vendidos e horários de pico. Só entram pedidos pagos e não cancelados.
+// vendidos e horários de pico. Entram os pedidos que foram para a fila (cliente pagou) e não cancelados.
 // Os agrupamentos são feitos em JavaScript para funcionar igual em SQLite e
 // PostgreSQL; para volumes grandes, troque por consultas agregadas.
 export default async function ReportsPage() {
@@ -16,8 +16,11 @@ export default async function ReportsPage() {
   const today = days[6];
 
   const orders = await prisma.order.findMany({
-    where: { paidAt: { gte: new Date(now.getTime() - 8 * DAY_MS) }, status: { not: "CANCELLED" } },
-    select: { totalCents: true, paidAt: true, items: { select: { name: true, quantity: true, unitCents: true } } },
+    where: {
+      createdAt: { gte: new Date(now.getTime() - 8 * DAY_MS) },
+      status: { in: ["RECEIVED", "PREPARING", "READY", "PICKED_UP"] },
+    },
+    select: { totalCents: true, createdAt: true, items: { select: { name: true, quantity: true, unitCents: true } } },
   });
 
   const byDay = new Map(days.map((d) => [d, { count: 0, cents: 0 }]));
@@ -25,7 +28,7 @@ export default async function ReportsPage() {
   const byProduct = new Map<string, { quantity: number; cents: number }>();
 
   for (const order of orders) {
-    const local = localInfo(order.paidAt!);
+    const local = localInfo(order.createdAt);
     const day = byDay.get(local.date);
     if (!day) continue; // fora da janela de 7 dias
     day.count += 1;
@@ -98,7 +101,7 @@ export default async function ReportsPage() {
         <section className="card p-4">
           <h2 className="mb-3 font-bold">Pedidos por horário (últimos 7 dias)</h2>
           {hours.length === 0 ? (
-            <p className="text-sm text-stone-500">Ainda não há pedidos pagos no período.</p>
+            <p className="text-sm text-stone-500">Ainda não há pedidos no período.</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="sr-only">
@@ -124,7 +127,7 @@ export default async function ReportsPage() {
         <section className="card p-4 lg:col-span-2">
           <h2 className="mb-3 font-bold">Produtos mais vendidos (últimos 7 dias)</h2>
           {topProducts.length === 0 ? (
-            <p className="text-sm text-stone-500">Ainda não há pedidos pagos no período.</p>
+            <p className="text-sm text-stone-500">Ainda não há pedidos no período.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>

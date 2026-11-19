@@ -1,7 +1,9 @@
-// Dias e horários de retirada. Cada dia aberto é dividido em intervalos
-// (ex.: 15 min) com limite de pedidos por intervalo, para distribuir o
-// movimento. O cliente pode agendar até `daysAhead` dias à frente.
+// Dias e faixa de horário de retirada. O cliente escolhe livremente o
+// horário dentro do funcionamento de cada dia (não há horários fixos).
+// Para não acumular fila, a cantina pode limitar quantos pedidos cabem em
+// cada janela de `slotMinutes` minutos (ver checkPickupCapacity).
 import { prisma } from "./db";
+import { HttpError } from "./api";
 import type { CantinaSettings } from "./settings";
 import { addDays, dayLabel, parseClosedDates, parseSchedule, weekdayOf, type DayHours } from "./schedule";
 import { fromMinutes, localInfo, toMinutes } from "./time";
@@ -11,11 +13,12 @@ export type PickupDay = {
   label: string; // "Hoje", "Amanhã", "qua, 19/11"
   hours: { from: string; to: string };
   asap: boolean; // "o mais rápido possível" disponível (só hoje, com a cantina aberta)
-  slots: { time: string; full: boolean }[];
+  earliest: string; // primeiro horário que dá para escolher (HH:MM)
+  latest: string; // último horário que dá para escolher (HH:MM)
 };
 
 export type Availability = {
-  open: boolean; // existe pelo menos um dia/horário para pedir?
+  open: boolean; // existe pelo menos um dia para pedir?
   reason: string | null; // motivo quando não há
   today: string;
   todayHours: DayHours | null; // horário de hoje (null = fechado hoje)
@@ -33,8 +36,7 @@ export async function getAvailability(settings: CantinaSettings): Promise<Availa
     return { ...base, open: false, reason: "A cantina não está aceitando pedidos no momento.", days: [] };
   }
 
-  // Monta os horários de cada dia, de hoje até daysAhead.
-  const candidates: PickupDay[] = [];
+  const days: PickupDay[] = [];
   for (let i = 0; i <= settings.daysAhead; i++) {
     const date = addDays(now.date, i);
     const hours = schedule[weekdayOf(date)];
@@ -42,40 +44,22 @@ export async function getAvailability(settings: CantinaSettings): Promise<Availa
 
     const openMin = toMinutes(hours.from);
     const closeMin = toMinutes(hours.to);
-    const step = settings.slotMinutes;
-    // Hoje: primeiro horário = agora + tempo de preparo, arredondado ao intervalo.
-    const earliest = i === 0 ? Math.max(openMin, now.minutes + settings.prepMinutes) : openMin;
-    const first = openMin + Math.ceil((earliest - openMin) / step) * step;
-
-    const times: string[] = [];
-    for (let t = first; t < closeMin; t += step) times.push(fromMinutes(t));
+    // Hoje: a partir de agora + tempo de preparo, arredondado para cima de 5 em 5 minutos.
+    const earliestMin = i === 0 ? Math.max(openMin, Math.ceil((now.minutes + settings.prepMinutes) / 5) * 5) : openMin;
+    const latestMin = closeMin; // pode retirar até o horário de fechamento
     const asap = i === 0 && now.minutes >= openMin && now.minutes < closeMin;
+    if (earliestMin > latestMin && !asap) continue;
 
-    candidates.push({
+    days.push({
       date,
       label: dayLabel(date, now.date),
       hours: { from: hours.from, to: hours.to },
       asap,
-      slots: times.map((time) => ({ time, full: false })),
+      earliest: fromMinutes(Math.min(earliestMin, latestMin)),
+      latest: fromMinutes(latestMin),
     });
   }
 
-  // Marca os horários que já atingiram o limite de pedidos.
-  const counts = await prisma.order.groupBy({
-    by: ["pickupDate", "pickupSlot"],
-    where: {
-      pickupDate: { in: candidates.map((d) => d.date) },
-      pickupSlot: { not: null },
-      status: { not: "CANCELLED" },
-    },
-    _count: true,
-  });
-  const taken = new Map(counts.map((c) => [`${c.pickupDate} ${c.pickupSlot}`, c._count]));
-  for (const day of candidates) {
-    for (const slot of day.slots) slot.full = (taken.get(`${day.date} ${slot.time}`) ?? 0) >= settings.maxPerSlot;
-  }
-
-  const days = candidates.filter((d) => d.asap || d.slots.length > 0);
   if (days.length === 0) {
     return {
       ...base,
@@ -88,4 +72,29 @@ export async function getAvailability(settings: CantinaSettings): Promise<Availa
     };
   }
   return { ...base, open: true, reason: null, days };
+}
+
+/** Valida o horário escolhido pelo cliente dentro da faixa do dia. */
+export function isWithinDay(day: PickupDay, time: string) {
+  const t = toMinutes(time);
+  return t >= toMinutes(day.earliest) && t <= toMinutes(day.latest);
+}
+
+/**
+ * Limite de pedidos por janela de tempo (ex.: 8 pedidos a cada 15 min), para
+ * a cozinha não receber tudo para o mesmo minuto.
+ */
+export async function checkPickupCapacity(settings: CantinaSettings, date: string, time: string) {
+  const step = settings.slotMinutes;
+  const bucket = Math.floor(toMinutes(time) / step);
+  const sameDay = await prisma.order.findMany({
+    where: { pickupDate: date, pickupSlot: { not: null }, status: { notIn: ["CANCELLED", "AWAITING_PAYMENT"] } },
+    select: { pickupSlot: true },
+  });
+  const taken = sameDay.filter((o) => Math.floor(toMinutes(o.pickupSlot!) / step) === bucket).length;
+  if (taken >= settings.maxPerSlot) {
+    const from = fromMinutes(bucket * step);
+    const to = fromMinutes(bucket * step + step);
+    throw new HttpError(409, `Muitos pedidos para retirar entre ${from} e ${to}. Escolha outro horário.`);
+  }
 }

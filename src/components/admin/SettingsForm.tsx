@@ -141,8 +141,8 @@ export function SettingsForm({ initial, today }: { initial: Values; today: strin
           <p className="mt-1 text-xs text-stone-500">Dias fechados e datas da lista abaixo são pulados automaticamente.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          {num("slotMinutes", "Intervalo (min)", "Tamanho de cada horário de retirada.", 5, 60)}
-          {num("maxPerSlot", "Pedidos por intervalo", "Limite para não acumular fila.", 1, 500)}
+          {num("maxPerSlot", "Máximo de pedidos", "Quantos pedidos podem ser retirados na mesma janela de tempo.", 1, 500)}
+          {num("slotMinutes", "Janela (min)", "Ex.: no máximo 8 pedidos a cada 15 minutos.", 5, 60)}
           {num("prepMinutes", "Preparo (min)", "Antecedência mínima para retirar hoje.", 0, 120)}
         </div>
       </fieldset>

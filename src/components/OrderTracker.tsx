@@ -114,7 +114,8 @@ function PixPayment({ order, onChange }: { order: OrderDTO; onChange: (o: OrderD
       <h2 className="text-lg font-bold">Pague com Pix</h2>
       <p className="mt-1 text-sm text-stone-600">
         Valor: <strong className="text-stone-900 tabular-nums">{formatBRL(order.totalCents)}</strong>. Abra o app do seu
-        banco, escolha Pix e leia o QR Code ou use o copia e cola.
+        banco, escolha Pix e leia o QR Code ou use o copia e cola. Depois de pagar, toque em <strong>Já paguei</strong> para
+        enviar o pedido à cantina.
       </p>
 
       <div className="mt-4 grid place-items-center">

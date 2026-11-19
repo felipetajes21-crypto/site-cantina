@@ -10,7 +10,8 @@ import { NEXT_ACTION_LABEL, STATUS_LABEL, type OrderStatus } from "@/lib/status"
 import { StatusBadge } from "../StatusBadge";
 
 const POLL_MS = 4000;
-const COLUMNS: OrderStatus[] = ["AWAITING_PAYMENT", "RECEIVED", "PREPARING", "READY"];
+// Só duas colunas: pedidos recebidos (para preparar) e prontos para retirada.
+const COLUMNS: OrderStatus[] = ["RECEIVED", "READY"];
 
 type Data = { active: OrderDTO[]; scheduled: OrderDTO[]; done: OrderDTO[] };
 
@@ -48,7 +49,6 @@ export function OrdersBoard() {
       const keys = new Set<string>();
       for (const o of fresh.active) {
         if (o.status === "RECEIVED") keys.add(String(o.id));
-        if (o.status === "AWAITING_PAYMENT" && o.paymentClaimed) keys.add(`${o.id}:pago`);
       }
       const isNew = seen.current !== null && [...keys].some((k) => !seen.current!.has(k));
       seen.current = new Set([...(seen.current ?? []), ...keys]);
@@ -93,7 +93,8 @@ export function OrdersBoard() {
 
   if (!data) return <p className="text-sm text-stone-500">{error ?? "Carregando pedidos…"}</p>;
 
-  const byStatus = (s: OrderStatus) => data.active.filter((o) => o.status === s);
+  const byStatus = (s: OrderStatus) =>
+    data.active.filter((o) => o.status === s || (s === "RECEIVED" && o.status === "PREPARING"));
 
   return (
     <>
@@ -126,7 +127,7 @@ export function OrdersBoard() {
       </div>
 
       {/* Computador/tablet: colunas lado a lado */}
-      <div className="grid gap-4 lg:grid-cols-4">
+      <div className="grid gap-4 lg:grid-cols-2">
         {COLUMNS.map((status) => (
           <section key={status} className={tab === status ? "" : "hidden lg:block"} aria-label={STATUS_LABEL[status]}>
             <h2 className="mb-2 hidden items-center justify-between text-sm font-bold text-stone-700 lg:flex">
@@ -146,7 +147,7 @@ export function OrdersBoard() {
       {data.scheduled.length > 0 && (
         <section className={`mt-8 ${tab === "DONE" ? "" : "hidden lg:block"}`}>
           <h2 className="mb-1 text-sm font-bold text-stone-700">Agendados para os próximos dias ({data.scheduled.length})</h2>
-          <p className="mb-2 text-sm text-stone-500">Já pagos. Entram na fila no dia da retirada.</p>
+          <p className="mb-2 text-sm text-stone-500">Entram na fila no dia da retirada.</p>
           <ul className="card divide-y divide-stone-200">
             {data.scheduled.map((o) => (
               <li key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
@@ -192,13 +193,13 @@ function OrderCard({
   busy: boolean;
   onAct: (order: OrderDTO, action: "confirm_payment" | "advance" | "cancel") => void;
 }) {
-  const awaiting = o.status === "AWAITING_PAYMENT";
-  const claimed = awaiting && o.paymentClaimed;
+  // Pix ainda não conferido pela cantina (o cliente tocou em "Já paguei").
+  const checkPix = !o.paymentConfirmed;
   // Cada pedido é uma comanda: cabeçalho com número e horário, picote, itens.
   return (
     <article
       className={`card px-4 pt-3.5 pb-3.5 [--tear-bg:var(--color-stone-50)] ${
-        claimed ? "border-saffron-400 ring-2 ring-saffron-300" : ""
+        checkPix ? "border-saffron-400" : ""
       } ${o.status === "READY" ? "border-brand-200" : ""}`}
       style={{ "--tear-inset": "1rem" } as React.CSSProperties}
     >
@@ -228,15 +229,24 @@ function OrderCard({
       </ul>
       {o.note && <p className="mt-2 rounded-md bg-saffron-100 px-2 py-1 text-[13px] font-semibold text-saffron-900">Pedido: {o.note}</p>}
 
-      {awaiting && (
-        <p className={`mt-3 flex items-baseline justify-between gap-2 text-sm ${claimed ? "font-semibold text-saffron-900" : "text-stone-500"}`}>
-          <span>{claimed ? "Cliente informou o pagamento" : "Ainda não pagou"}</span>
-          <span className="shrink-0 tabular-nums">{formatBRL(o.totalCents)}</span>
-        </p>
+      {checkPix && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-saffron-100 px-2.5 py-2 text-sm">
+          <span className="font-semibold text-saffron-900">
+            Conferir Pix · <span className="tabular-nums">{formatBRL(o.totalCents)}</span>
+          </span>
+          <button
+            type="button"
+            className="cursor-pointer rounded-md px-2 py-1 text-[13px] font-semibold text-saffron-900 underline underline-offset-2 hover:bg-saffron-300/50 disabled:opacity-50"
+            disabled={busy}
+            onClick={() => onAct(o, "confirm_payment")}
+          >
+            Pix conferido
+          </button>
+        </div>
       )}
 
       <div className="mt-3 flex gap-2">
-        <button type="button" className="btn-primary btn-sm flex-1 whitespace-nowrap" disabled={busy} onClick={() => onAct(o, awaiting ? "confirm_payment" : "advance")}>
+        <button type="button" className="btn-primary btn-sm flex-1 whitespace-nowrap" disabled={busy} onClick={() => onAct(o, "advance")}>
           {NEXT_ACTION_LABEL[o.status]}
         </button>
         <button

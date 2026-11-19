@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { HttpError } from "./api";
 import { getSettings } from "./settings";
-import { getAvailability } from "./slots";
+import { checkPickupCapacity, getAvailability, isWithinDay } from "./slots";
 import { getPaymentProvider } from "./payments";
 import { NEXT_STATUS, type OrderStatus } from "./status";
 import type { z } from "zod";
@@ -38,6 +38,7 @@ export function serializeOrder(o: OrderWithItems) {
     isToday: o.pickupDate === localInfo().date,
     pixPayload: o.status === "AWAITING_PAYMENT" ? o.pixPayload : null,
     paymentClaimed: !!o.paymentClaimedAt,
+    paymentConfirmed: !!o.paidAt, // a cantina conferiu o Pix (ou o gateway confirmou)
     // Prazo de pagamento já formatado no fuso da cantina.
     payUntil: o.expiresAt ? formatTime(o.expiresAt) : null,
     createdAt: o.createdAt.toISOString(),
@@ -67,10 +68,12 @@ export async function createOrder(userId: string, input: z.infer<typeof orderSch
   if (input.pickup === "ASAP") {
     if (!day.asap) throw new HttpError(409, "Escolha um horário de retirada.");
   } else {
-    const slot = day.slots.find((s) => s.time === input.pickup);
-    if (!slot) throw new HttpError(409, "Esse horário não está mais disponível. Escolha outro.");
-    if (slot.full) throw new HttpError(409, "Esse horário lotou. Escolha outro.");
-    pickupSlot = slot.time;
+    // Horário livre, escolhido pelo cliente, dentro do funcionamento do dia.
+    if (!isWithinDay(day, input.pickup)) {
+      throw new HttpError(409, `Escolha um horário entre ${day.earliest} e ${day.latest}.`);
+    }
+    await checkPickupCapacity(settings, day.date, input.pickup);
+    pickupSlot = input.pickup;
   }
 
   // Junta itens repetidos do mesmo produto apenas para conferir o estoque.
@@ -172,16 +175,38 @@ export async function expireStaleOrders() {
   for (const { id } of stale) await cancelOrder(id);
 }
 
-/** Pagamento confirmado (pela cantina ou pelo webhook do gateway). */
-export async function markOrderPaid(orderId: number) {
+/**
+ * Cliente tocou em "Já paguei": o pedido entra na fila da cantina como
+ * Recebido, com o selo "Conferir Pix" até a cantina confirmar.
+ */
+export async function claimPayment(orderId: number) {
   const updated = await prisma.order.updateMany({
     where: { id: orderId, status: "AWAITING_PAYMENT" },
-    data: { status: "RECEIVED", paidAt: new Date() },
+    data: { status: "RECEIVED", paymentClaimedAt: new Date() },
   });
   return updated.count > 0;
 }
 
-/** Avança o pedido para o próximo status do fluxo (Recebido → Em preparo → Pronto → Retirado). */
+/**
+ * Pagamento confirmado: pela cantina (conferiu o Pix no app do banco) ou pelo
+ * webhook do gateway. Funciona com o pedido aguardando ou já na fila.
+ */
+export async function markOrderPaid(orderId: number) {
+  const now = new Date();
+  const [fromWaiting, inQueue] = await prisma.$transaction([
+    prisma.order.updateMany({
+      where: { id: orderId, status: "AWAITING_PAYMENT" },
+      data: { status: "RECEIVED", paidAt: now },
+    }),
+    prisma.order.updateMany({
+      where: { id: orderId, status: { in: ["RECEIVED", "PREPARING", "READY"] }, paidAt: null },
+      data: { paidAt: now },
+    }),
+  ]);
+  return fromWaiting.count + inQueue.count > 0;
+}
+
+/** Avança o pedido para o próximo status do fluxo (Recebido → Pronto → Retirado). */
 export async function advanceOrder(orderId: number, from: OrderStatus) {
   const next = NEXT_STATUS[from];
   if (!next) throw new HttpError(400, "Esse pedido não pode avançar.");
@@ -191,9 +216,13 @@ export async function advanceOrder(orderId: number, from: OrderStatus) {
     data: {
       status: next,
       ...(next === "READY" ? { readyAt: new Date() } : {}),
+      // Entregar no balcão confirma o pagamento, se ainda não estava confirmado.
       ...(next === "PICKED_UP" ? { pickedUpAt: new Date() } : {}),
     },
   });
   if (updated.count === 0) throw new HttpError(409, "O pedido já foi atualizado por outra pessoa.");
+  if (next === "PICKED_UP") {
+    await prisma.order.updateMany({ where: { id: orderId, paidAt: null }, data: { paidAt: new Date() } });
+  }
   return next;
 }

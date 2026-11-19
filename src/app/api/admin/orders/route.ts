@@ -12,15 +12,14 @@ export const GET = handle(async () => {
   await requireAdmin();
   await expireStaleOrders();
   const today = localInfo().date;
-  // Fila de hoje: aguardando pagamento (de qualquer dia) + pedidos pagos para hoje.
-  // Pedidos pagos para os próximos dias ficam em "Agendados" até o dia chegar.
+  // Fila de hoje: pedidos recebidos (cliente já pagou) e prontos, para hoje.
+  // Pedidos para os próximos dias ficam em "Agendados" até o dia chegar.
+  // Pedidos ainda sem "Já paguei" não aparecem (expiram sozinhos em 20 min).
   const [active, scheduled, done] = await Promise.all([
     prisma.order.findMany({
       where: {
-        OR: [
-          { status: "AWAITING_PAYMENT" },
-          { status: { in: ["RECEIVED", "PREPARING", "READY"] }, pickupDate: { lte: today } },
-        ],
+        status: { in: ["RECEIVED", "PREPARING", "READY"] },
+        pickupDate: { lte: today },
       },
       include: orderInclude,
       orderBy: { id: "asc" },

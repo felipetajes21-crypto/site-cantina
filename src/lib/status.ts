@@ -20,18 +20,20 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 // Etapas mostradas ao cliente na linha do tempo do pedido.
-export const TIMELINE: OrderStatus[] = ["RECEIVED", "PREPARING", "READY", "PICKED_UP"];
+// Fluxo simplificado: Recebido → Pronto para retirada → Retirado.
+// "Em preparo" (PREPARING) só existe em pedidos antigos e é tratado como Recebido.
+export const TIMELINE: OrderStatus[] = ["RECEIVED", "READY", "PICKED_UP"];
 
 // Próximo status no fluxo normal da cozinha.
 export const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  RECEIVED: "PREPARING",
+  RECEIVED: "READY",
   PREPARING: "READY",
   READY: "PICKED_UP",
 };
 
 export const NEXT_ACTION_LABEL: Partial<Record<OrderStatus, string>> = {
   AWAITING_PAYMENT: "Confirmar pagamento",
-  RECEIVED: "Iniciar preparo",
+  RECEIVED: "Marcar como pronto",
   PREPARING: "Marcar como pronto",
   READY: "Confirmar retirada",
 };
