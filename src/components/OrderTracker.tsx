@@ -1,0 +1,208 @@
+"use client";
+
+// Tela do pedido: pagamento (Mercado Pago etc.) e acompanhamento do status em tempo real.
+// O "tempo real" é feito por polling: a cada 4 segundos consultamos o pedido.
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { api } from "@/lib/client";
+import { formatBRL, orderNumber } from "@/lib/format";
+import type { OrderDTO } from "@/lib/orders";
+import { isFinal, STATUS_LABEL, TIMELINE } from "@/lib/status";
+import { QrCode } from "./QrCode";
+import { StatusBadge } from "./StatusBadge";
+
+const POLL_MS = 4000;
+
+export function OrderTracker({ initial }: { initial: OrderDTO }) {
+  const [order, setOrder] = useState(initial);
+  const previousStatus = useRef(initial.status);
+
+  useEffect(() => {
+    if (isFinal(order.status)) return;
+    const timer = setInterval(async () => {
+      if (document.hidden) return; // não consulta com a aba em segundo plano
+      try {
+        const { order: fresh } = await api<{ order: OrderDTO }>(`/api/orders/${initial.id}`);
+        setOrder(fresh);
+      } catch {}
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [initial.id, order.status]);
+
+  // Avisa (vibração) quando o pedido fica pronto.
+  useEffect(() => {
+    if (previousStatus.current !== order.status && order.status === "READY") {
+      navigator.vibrate?.([200, 100, 200]);
+    }
+    previousStatus.current = order.status;
+  }, [order.status]);
+
+  return (
+    <div className="mx-auto max-w-md">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight tabular-nums">Pedido {orderNumber(order.id)}</h1>
+        <StatusBadge status={order.status} refused={order.cancelReason === "REFUSED"} />
+      </div>
+      <p className="mt-1 text-sm text-stone-600">Retirada: <strong className="font-semibold text-stone-800">{order.pickupLabel}</strong></p>
+
+      <div className="mt-5">
+        {order.status === "AWAITING_PAYMENT" && <OnlinePayment order={order} onChange={setOrder} />}
+        {order.status === "CANCELLED" && <Cancelled order={order} />}
+        {TIMELINE.includes(order.status) && <Progress order={order} />}
+      </div>
+
+      <section className="card mt-5 p-4">
+        <h2 className="mb-2 font-bold">Itens</h2>
+        <ul className="space-y-2 text-sm">
+          {order.items.map((i) => (
+            <li key={i.id} className="flex justify-between gap-3">
+              <span>
+                <span className="font-medium">{i.quantity}× {i.name}</span>
+                {i.note && <span className="block text-stone-600">Obs.: {i.note}</span>}
+              </span>
+              <span className="shrink-0 tabular-nums">{formatBRL(i.unitCents * i.quantity)}</span>
+            </li>
+          ))}
+        </ul>
+        {order.note && <p className="mt-3 border-t border-stone-200 pt-3 text-sm text-stone-700">Observação: {order.note}</p>}
+        <div className="mt-3 flex justify-between border-t border-stone-200 pt-3 font-bold">
+          <span>Total</span>
+          <span className="tabular-nums">{formatBRL(order.totalCents)}</span>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/** Mensagem de pedido cancelado, conforme o motivo e a devolução do dinheiro. */
+function Cancelled({ order }: { order: OrderDTO }) {
+  const total = formatBRL(order.totalCents);
+  const refused = order.cancelReason === "REFUSED";
+  return (
+    <div className="card p-5 text-center">
+      <p className="font-display text-lg font-bold">{refused ? "A cantina não pôde aceitar este pedido" : "Este pedido foi cancelado"}</p>
+      {order.refundStatus === "REFUNDED" ? (
+        <p className="mx-auto mt-2 max-w-xs rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+          Os <strong className="tabular-nums">{total}</strong> foram devolvidos para a mesma forma de pagamento. Pode levar
+          alguns dias para aparecer no cartão ou na conta.
+        </p>
+      ) : order.refundStatus === "MANUAL" ? (
+        <p className="mx-auto mt-2 max-w-xs rounded-xl bg-saffron-100 px-3 py-2.5 text-sm text-saffron-900">
+          A cantina vai devolver os <strong className="tabular-nums">{total}</strong>. Em caso de dúvida, procure a cantina
+          com o número do pedido.
+        </p>
+      ) : (
+        <p className="mt-1 text-sm text-stone-600">
+          {order.cancelReason === "EXPIRED" ? "O pagamento não foi concluído a tempo." : "Nenhum valor foi cobrado."}
+        </p>
+      )}
+      <Link href="/" className="btn-primary mt-4">Fazer novo pedido</Link>
+    </div>
+  );
+}
+
+/** Pagamento online (PayPal etc.): leva o cliente para a página de pagamento. */
+function OnlinePayment({ order, onChange }: { order: OrderDTO; onChange: (o: OrderDTO) => void }) {
+  const [error, setError] = useState<string | null>(null);
+  async function cancel() {
+    try {
+      await api(`/api/orders/${order.id}/cancel`, "POST", {});
+      const { order: fresh } = await api<{ order: OrderDTO }>(`/api/orders/${order.id}`);
+      onChange(fresh);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+  return (
+    <div className="card p-5">
+      <h2 className="text-lg font-bold">Aguardando pagamento</h2>
+      <p className="mt-1 text-sm text-stone-600">
+        Valor: <strong className="text-stone-900 tabular-nums">{formatBRL(order.totalCents)}</strong>. O pedido vai para a
+        cantina assim que o pagamento for aprovado. Se você pagou com Pix, esta tela atualiza sozinha em alguns segundos.
+      </p>
+      <p className="mt-3 flex items-center gap-2 text-sm text-stone-500" role="status">
+        <span className="size-2 animate-pulse rounded-full bg-saffron-500" aria-hidden />
+        Conferindo o pagamento…
+      </p>
+      {order.checkoutUrl && <a href={order.checkoutUrl} className="btn-primary mt-4 w-full">Pagar agora</a>}
+      <button type="button" className="btn mt-1 w-full text-stone-600 hover:bg-stone-100" onClick={cancel}>
+        Cancelar pedido
+      </button>
+      {order.payUntil && (
+        <p className="mt-2 text-center text-xs text-stone-500">Pague até {order.payUntil} ou o pedido será cancelado.</p>
+      )}
+      {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+    </div>
+  );
+}
+
+const CHECK = (
+  <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </svg>
+);
+
+/**
+ * Comanda do pedido: número e QR Code para o balcão, separados por um picote
+ * da linha do tempo do preparo.
+ */
+function Progress({ order }: { order: OrderDTO }) {
+  const current = TIMELINE.indexOf(order.status);
+  const ready = order.status === "READY";
+  const done = order.status === "PICKED_UP";
+
+  return (
+    <div className="card overflow-visible">
+      <div className={`rounded-t-2xl px-5 pt-5 pb-5 text-center ${ready ? "bg-saffron-100" : ""}`}>
+        {ready ? (
+          <p className="font-display text-lg font-bold text-saffron-900" role="status">
+            Pronto! Retire no balcão.
+          </p>
+        ) : done ? (
+          <p className="font-display text-lg font-bold text-stone-700" role="status">Pedido retirado. Bom apetite!</p>
+        ) : (
+          <p className="text-sm font-medium text-stone-600">Apresente no balcão</p>
+        )}
+        <p className="mt-1 font-display text-6xl leading-none font-extrabold tracking-[-0.03em] tabular-nums">
+          {orderNumber(order.id)}
+        </p>
+        {!done && (
+          <div className="mt-4 grid place-items-center">
+            <QrCode value={`CANTINA:${order.code}`} size={168} label="QR Code de retirada" />
+          </div>
+        )}
+      </div>
+
+      <div className="ticket-tear" style={{ "--tear-inset": "0px" } as React.CSSProperties} />
+
+      <div className="px-5 pt-5 pb-3">
+        <ol aria-label="Andamento do pedido">
+          {TIMELINE.map((status, i) => {
+            const reached = i <= current;
+            const isCurrent = i === current;
+            return (
+              <li key={status} className="flex gap-3" aria-current={isCurrent ? "step" : undefined}>
+                <div className="flex flex-col items-center">
+                  <span
+                    className={`grid size-6 place-items-center rounded-full text-xs font-bold transition-colors ${
+                      reached ? "bg-brand-700 text-white" : "bg-stone-100 text-stone-500 ring-1 ring-stone-200"
+                    } ${isCurrent && !done ? "ring-4 ring-brand-100" : ""}`}
+                  >
+                    {reached ? CHECK : i + 1}
+                  </span>
+                  {i < TIMELINE.length - 1 && <span className={`my-1 w-0.5 flex-1 rounded-full ${i < current ? "bg-brand-700" : "bg-stone-200"}`} />}
+                </div>
+                <p className={`pb-4 text-[15px] ${isCurrent ? "font-semibold text-stone-900" : reached ? "text-stone-600" : "text-stone-400"}`}>
+                  {STATUS_LABEL[status]}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+        {done && (
+          <Link href="/" className="btn-secondary mb-2 w-full">Fazer novo pedido</Link>
+        )}
+      </div>
+    </div>
+  );
+}
