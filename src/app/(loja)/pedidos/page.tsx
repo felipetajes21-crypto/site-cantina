@@ -27,7 +27,7 @@ export default async function OrdersPage() {
   });
 
   return (
-    <>
+    <div className="mx-auto max-w-2xl">
       <h1 className="mb-4 text-2xl font-bold tracking-tight">Meus pedidos</h1>
       {orders.length === 0 ? (
         <div className="card p-8 text-center">
@@ -61,6 +61,6 @@ export default async function OrdersPage() {
           ))}
         </ul>
       )}
-    </>
+    </div>
   );
 }

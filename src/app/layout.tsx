@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Figtree } from "next/font/google";
+import { Figtree, Fraunces } from "next/font/google";
 import { getSettings } from "@/lib/settings";
 import { brand } from "@/config/brand";
 import "./globals.css";
 
 // Fontes servidas pelo próprio site (o Next baixa no build; nada é carregado do Google no navegador).
-const heading = Bricolage_Grotesque({
+// Títulos numa serifada calorosa (combina com café); texto em sans-serif simples.
+const heading = Fraunces({
   subsets: ["latin"],
   weight: ["600", "700", "800"],
   variable: "--font-heading",

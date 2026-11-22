@@ -41,3 +41,22 @@ export function productImage(p: { id: string; imageUrl: string | null; imageMime
 
 export type Menu = Awaited<ReturnType<typeof getMenu>>;
 export type MenuProduct = Menu[number]["products"][number];
+
+/**
+ * "Mais pedidos": os produtos mais vendidos nos últimos 30 dias (pedidos que
+ * foram para a fila, sem cancelados). Retorna os ids, do mais vendido ao menos.
+ */
+export async function getPopularProductIds(limit = 4) {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const rows = await prisma.orderItem.groupBy({
+    by: ["productId"],
+    where: {
+      productId: { not: null },
+      order: { createdAt: { gte: since }, status: { in: ["RECEIVED", "PREPARING", "READY", "PICKED_UP"] } },
+    },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: "desc" } },
+    take: limit,
+  });
+  return rows.map((r) => r.productId!);
+}

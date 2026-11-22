@@ -4,5 +4,9 @@ import { CartView } from "@/components/CartView";
 export const metadata = { title: "Carrinho" };
 
 export default async function CartPage() {
-  return <CartView loggedIn={!!(await getSession())} />;
+  return (
+    <div className="mx-auto max-w-2xl">
+      <CartView loggedIn={!!(await getSession())} />
+    </div>
+  );
 }
