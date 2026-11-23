@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="logo-bg" x1="6" y1="2" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f26b12"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#logo-bg)"/>
+  <!-- vapor -->
+  <path d="M25.5 19.5c-2.3-2.5 2.3-4.6 0-7.5" stroke="#ffd25a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M33.5 19.5c-2.3-2.5 2.3-4.6 0-7.5" stroke="#ffd25a" stroke-width="3" stroke-linecap="round"/>
+  <!-- pires -->
+  <ellipse cx="30.5" cy="50.5" rx="18" ry="3.6" fill="#ffc82f"/>
+  <!-- alça -->
+  <path d="M44 28.5h1.6a5.6 5.6 0 0 1 0 11.2h-2.8" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/>
+  <!-- xícara -->
+  <path d="M14.5 24h31.5v9.2c0 8.6-7 15.6-15.6 15.6h-.3c-8.6 0-15.6-7-15.6-15.6Z" fill="#fff"/>
+  <!-- café visto de cima (borda) -->
+  <path d="M14.5 24h31.5v2.6H14.5z" fill="#ffe7b3"/>
+  <!-- coração -->
+  <path d="M30.25 42.2c-.32 0-.63-.11-.88-.32-2.45-2-5.62-4.4-5.62-7.3a3.35 3.35 0 0 1 6.5-1.15 3.35 3.35 0 0 1 6.5 1.15c0 2.9-3.17 5.3-5.62 7.3-.25.21-.56.32-.88.32Z" fill="#f26b12"/>
+</svg>
