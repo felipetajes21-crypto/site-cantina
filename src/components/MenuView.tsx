@@ -3,7 +3,7 @@
 // Cardápio: busca, filtro por categoria (botões no celular, coluna lateral no
 // computador), "Mais pedidos" e cartões de produto com foto grande.
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatBRL } from "@/lib/format";
 import type { Menu, MenuProduct } from "@/lib/menu";
 import { useCart } from "./cart";
@@ -19,6 +19,7 @@ export function MenuView({ menu, popularIds }: { menu: Menu; popularIds: string[
   const cart = useCart();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<string>("all"); // id da categoria ou "all"
+  const [open, setOpen] = useState<Item | null>(null); // produto aberto nos detalhes
 
   const all: Item[] = useMemo(
     () => menu.flatMap((c) => c.products.map((p) => ({ ...p, category: c.name, icon: c.icon }))),
@@ -116,25 +117,27 @@ export function MenuView({ menu, popularIds }: { menu: Menu; popularIds: string[
               {results.length === 0 ? (
                 <p className="card p-6 text-center text-stone-600">Nada encontrado. Tente outra palavra.</p>
               ) : (
-                <Grid items={results} />
+                <Grid items={results} onOpen={setOpen} />
               )}
             </Section>
           ) : (
             <>
               {active === "all" && popular.length > 0 && (
                 <Section title="Mais pedidos" count={popular.length} highlight>
-                  <Grid items={popular} />
+                  <Grid items={popular} onOpen={setOpen} />
                 </Section>
               )}
               {visible.map((category) => (
                 <Section key={category.id} title={category.name} count={category.products.length} id={`cat-${category.id}`}>
-                  <Grid items={category.products.map((p) => ({ ...p, category: category.name, icon: category.icon }))} />
+                  <Grid items={category.products.map((p) => ({ ...p, category: category.name, icon: category.icon }))} onOpen={setOpen} />
                 </Section>
               ))}
             </>
           )}
         </div>
       </div>
+
+      {open && <ProductDetail product={open} onClose={() => setOpen(null)} />}
 
       {/* Barra fixa do carrinho */}
       {cart.ready && cart.count > 0 && (
@@ -173,17 +176,17 @@ function Section({ title, count, id, highlight, children }: { title: string; cou
   );
 }
 
-function Grid({ items }: { items: Item[] }) {
+function Grid({ items, onOpen }: { items: Item[]; onOpen: (p: Item) => void }) {
   return (
     <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
       {items.map((p) => (
-        <ProductCard key={p.id} product={p} />
+        <ProductCard key={p.id} product={p} onOpen={() => onOpen(p)} />
       ))}
     </ul>
   );
 }
 
-function ProductCard({ product: p }: { product: Item }) {
+function ProductCard({ product: p, onOpen }: { product: Item; onOpen: () => void }) {
   const cart = useCart();
   const quantity = cart.quantityOf(p.id);
 
@@ -193,7 +196,7 @@ function ProductCard({ product: p }: { product: Item }) {
         quantity > 0 ? "border-brand-200 ring-2 ring-brand-200" : ""
       } ${p.available ? "" : "opacity-60 saturate-50"}`}
     >
-      <div className="relative">
+      <button type="button" onClick={onOpen} className="relative block w-full cursor-pointer text-left" aria-label={`Ver detalhes de ${p.name}`}>
         <ProductImage src={p.image} name={p.name} category={p.category} icon={p.icon} className="aspect-[4/3] w-full rounded-none" />
         {!p.available && (
           <span className="absolute top-2 left-2 rounded-full bg-stone-900/85 px-2.5 py-1 text-xs font-semibold text-white">Esgotado</span>
@@ -203,11 +206,20 @@ function ProductCard({ product: p }: { product: Item }) {
             {quantity}×
           </span>
         )}
-      </div>
+      </button>
       <div className="flex flex-1 flex-col p-3 sm:p-4">
         <p className="text-[11px] font-bold tracking-wider text-brand-800 uppercase">{p.category}</p>
-        <h3 className="mt-0.5 font-display text-[17px] leading-snug font-bold">{p.name}</h3>
+        <h3 className="mt-0.5 font-display text-[17px] leading-snug font-bold">
+          <button type="button" onClick={onOpen} className="cursor-pointer text-left hover:underline hover:decoration-brand-700/40 hover:underline-offset-4">
+            {p.name}
+          </button>
+        </h3>
         {p.description && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-stone-600">{p.description}</p>}
+        {p.description.length > 70 && (
+          <button type="button" onClick={onOpen} className="mt-1 w-fit cursor-pointer text-[13px] font-semibold text-brand-800 hover:underline">
+            Ver mais
+          </button>
+        )}
         <div className="mt-auto pt-3">
           <p className="border-t border-stone-100 pt-2.5 text-lg font-bold text-brand-800 tabular-nums">{formatBRL(p.priceCents)}</p>
           <div className="mt-2">
@@ -230,5 +242,104 @@ function ProductCard({ product: p }: { product: Item }) {
         </div>
       </div>
     </li>
+  );
+}
+
+/**
+ * Detalhes do produto: foto grande, descrição completa, quantidade e
+ * observação. No celular abre de baixo para cima; no computador, no centro.
+ */
+function ProductDetail({ product: p, onClose }: { product: Item; onClose: () => void }) {
+  const cart = useCart();
+  const ref = useRef<HTMLDialogElement>(null);
+  const inCart = cart.items.find((i) => i.productId === p.id);
+  const [quantity, setQuantity] = useState(inCart?.quantity ?? 1);
+  const [note, setNote] = useState(inCart?.note ?? "");
+
+  useEffect(() => {
+    ref.current?.showModal();
+  }, []);
+
+  function save() {
+    cart.setQuantity(p, quantity);
+    cart.setNote(p.id, note.trim());
+    onClose();
+  }
+
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onClick={(e) => e.target === ref.current && onClose()} // toque fora fecha
+      aria-labelledby="product-detail-title"
+      className="mx-auto mt-auto mb-0 max-h-[92dvh] w-full max-w-none overflow-hidden rounded-t-3xl p-0 backdrop:bg-stone-900/55 sm:m-auto sm:max-w-lg sm:rounded-3xl"
+    >
+      <div className="flex max-h-[92dvh] flex-col">
+        <div className="relative shrink-0">
+          <ProductImage src={p.image} name={p.name} category={p.category} icon={p.icon} className="aspect-[16/10] w-full rounded-none" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="absolute top-3 right-3 grid size-10 cursor-pointer place-items-center rounded-full bg-white/95 text-stone-800 shadow-md hover:bg-white"
+          >
+            <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 pt-4 pb-3">
+          <p className="text-[11px] font-bold tracking-wider text-brand-800 uppercase">{p.category}</p>
+          <h2 id="product-detail-title" className="mt-0.5 text-2xl leading-tight font-bold">{p.name}</h2>
+          <p className="mt-1 text-xl font-bold text-brand-800 tabular-nums">{formatBRL(p.priceCents)}</p>
+          {p.description ? (
+            <p className="mt-3 text-[15px] leading-relaxed whitespace-pre-line text-stone-700">{p.description}</p>
+          ) : (
+            <p className="mt-3 text-sm text-stone-500">Sem descrição.</p>
+          )}
+
+          {p.available && (
+            <div className="mt-5">
+              <label className="label" htmlFor="detail-note">Observação (opcional)</label>
+              <input
+                id="detail-note"
+                className="input"
+                placeholder="Ex.: sem cebola, bem passado"
+                maxLength={140}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3 border-t border-stone-200 bg-white px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {!p.available ? (
+            <button type="button" disabled className="btn-secondary w-full">Esgotado no momento</button>
+          ) : (
+            <>
+              <Stepper value={quantity} max={p.maxQuantity} label={p.name} onChange={(q) => setQuantity(Math.max(1, q))} />
+              <button type="button" className="btn-primary flex-1 justify-between px-4" onClick={save}>
+                <span>{inCart ? "Atualizar" : "Adicionar"}</span>
+                <span className="tabular-nums">{formatBRL(p.priceCents * quantity)}</span>
+              </button>
+            </>
+          )}
+        </div>
+        {inCart && p.available && (
+          <button
+            type="button"
+            className="cursor-pointer pb-3 text-center text-sm font-semibold text-red-700 hover:underline"
+            onClick={() => {
+              cart.setQuantity(p, 0);
+              onClose();
+            }}
+          >
+            Remover do carrinho
+          </button>
+        )}
+      </div>
+    </dialog>
   );
 }

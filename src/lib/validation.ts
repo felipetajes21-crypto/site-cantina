@@ -50,7 +50,7 @@ export const orderSchema = z.object({
 
 export const productSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome.").max(80),
-  description: z.string().trim().max(300).default(""),
+  description: z.string().trim().max(1000, "A descrição pode ter até 1.000 caracteres.").default(""),
   priceCents: z.number().int().min(0).max(1_000_000),
   categoryId: z.string().min(1),
   active: z.boolean().default(true),

@@ -199,7 +199,16 @@ function ProductForm({ product, categories, onDone }: { product: AdminProduct | 
       </div>
       <div>
         <label className="label" htmlFor="p-desc">Descrição</label>
-        <textarea id="p-desc" className="input py-2.5" rows={2} maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <textarea
+          id="p-desc"
+          className="input py-2.5"
+          rows={4}
+          maxLength={1000}
+          placeholder="O que vai no produto, sabores, tamanho, alérgenos…"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <p className="mt-1 text-right text-xs text-stone-500 tabular-nums">{description.length}/1000 · O cliente vê o texto completo ao tocar no produto.</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
