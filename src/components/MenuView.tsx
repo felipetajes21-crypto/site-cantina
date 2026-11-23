@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 import { formatBRL } from "@/lib/format";
 import type { Menu, MenuProduct } from "@/lib/menu";
 import { useCart } from "./cart";
-import { CATEGORY_TINT, CategoryIcon, categoryKind } from "./CategoryIcon";
 import { ProductImage } from "./ProductImage";
 import { Stepper } from "./Stepper";
 
@@ -37,7 +36,7 @@ export function MenuView({ menu, popularIds }: { menu: Menu; popularIds: string[
   const popular = popularIds.map((id) => all.find((p) => p.id === id)).filter((p): p is Item => !!p && p.available);
   const visible = active === "all" ? menu : menu.filter((c) => c.id === active);
 
-  const chip = (id: string, label: string, count: number, icon?: React.ReactNode) => (
+  const chip = (id: string, label: string, count: number) => (
     <button
       key={id}
       type="button"
@@ -46,11 +45,10 @@ export function MenuView({ menu, popularIds }: { menu: Menu; popularIds: string[
         setActive(id);
         setQuery("");
       }}
-      className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border py-1.5 pr-3 pl-1.5 text-sm font-semibold transition-colors ${
+      className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
         active === id ? "border-brand-700 bg-brand-700 text-white" : "border-stone-200 bg-white text-stone-800 hover:border-brand-700"
       }`}
     >
-      {icon}
       {label}
       <span className={`rounded-full px-1.5 text-xs tabular-nums ${active === id ? "bg-white/20" : "bg-stone-100 text-stone-600"}`}>{count}</span>
     </button>
@@ -84,7 +82,7 @@ export function MenuView({ menu, popularIds }: { menu: Menu; popularIds: string[
           <nav aria-label="Categorias" className="card sticky top-28 p-3">
             <p className="px-2 pt-1 pb-2 font-display text-lg font-bold">Categorias</p>
             <ul className="space-y-1">
-              {[{ id: "all", name: "Todos os produtos", count: total, icon: "" }, ...menu.map((c) => ({ id: c.id, name: c.name, count: c.products.length, icon: c.icon }))].map((c) => (
+              {[{ id: "all", name: "Todos os produtos", count: total }, ...menu.map((c) => ({ id: c.id, name: c.name, count: c.products.length }))].map((c) => (
                 <li key={c.id}>
                   <button
                     type="button"
@@ -93,19 +91,10 @@ export function MenuView({ menu, popularIds }: { menu: Menu; popularIds: string[
                       setActive(c.id);
                       setQuery("");
                     }}
-                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm font-semibold transition-colors ${
+                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
                       active === c.id ? "bg-brand-700 text-white" : "text-stone-800 hover:bg-stone-100"
                     }`}
                   >
-                    {c.id !== "all" ? (
-                      <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${CATEGORY_TINT[categoryKind(c.name, c.icon)]}`}>
-                        <CategoryIcon kind={categoryKind(c.name, c.icon)} className="size-4" />
-                      </span>
-                    ) : (
-                      <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-saffron-100 text-saffron-900">
-                        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 6h16M4 12h16M4 18h16" /></svg>
-                      </span>
-                    )}
                     <span className="min-w-0 flex-1 truncate">{c.name}</span>
                     <span className={`rounded-full px-1.5 text-xs tabular-nums ${active === c.id ? "bg-white/20" : "bg-stone-100 text-stone-600"}`}>{c.count}</span>
                   </button>
@@ -119,17 +108,7 @@ export function MenuView({ menu, popularIds }: { menu: Menu; popularIds: string[
           {/* Categorias: botões no celular */}
           <nav aria-label="Categorias" className="no-scrollbar sticky top-16 z-20 -mx-4 mb-1 flex gap-2 overflow-x-auto bg-stone-50/95 px-4 py-2.5 backdrop-blur lg:hidden">
             {chip("all", "Todos", total)}
-            {menu.map((c) => {
-              const kind = categoryKind(c.name, c.icon);
-              return chip(
-                c.id,
-                c.name,
-                c.products.length,
-                <span className={`grid size-6 place-items-center rounded-full ${CATEGORY_TINT[kind]}`}>
-                  <CategoryIcon kind={kind} className="size-4" />
-                </span>,
-              );
-            })}
+            {menu.map((c) => chip(c.id, c.name, c.products.length))}
           </nav>
 
           {searching ? (
